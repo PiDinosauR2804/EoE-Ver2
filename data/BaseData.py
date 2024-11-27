@@ -282,19 +282,19 @@ class BaseData:
                     ins.update({
                         f'description_ids_{idx}': pool
                     })
-                    
-                old_labels = seen_labels[count_negative_label%lenght_seen_labels]
-                ins.update({
-                        'old_labels': self.label2id[old_labels]
-                    })
-                old_pools = {}
-                if old_labels in old_descriptions.keys():
-                    old_pools = old_descriptions[old_labels]
-                    
-                for idx, pool in enumerate(old_pools):
+                if lenght_seen_labels != 0:
+                    old_labels = seen_labels[count_negative_label%lenght_seen_labels]
                     ins.update({
-                        f'old_description_ids_{idx}': pool
-                    })
+                            'old_labels': self.label2id[old_labels]
+                        })
+                    old_pools = {}
+                    if old_labels in old_descriptions.keys():
+                        old_pools = old_descriptions[old_labels]
+                        
+                    for idx, pool in enumerate(old_pools):
+                        ins.update({
+                            f'old_description_ids_{idx}': pool
+                        })
                 
                 count_negative_label += 1
                 sub_res.append(ins)
