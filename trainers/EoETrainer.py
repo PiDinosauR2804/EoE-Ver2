@@ -50,7 +50,7 @@ class EoETrainer(BaseTrainer):
             logger.info(f"Current classes: {' '.join(cur_labels)}")
             
             for cur_label in cur_labels:
-                model.generate_description(cur_label, self.args.dataset_name, tokenizer)
+                model.take_generate_description_genai_from_file(cur_label, self.args.dataset_name, tokenizer)
             pool = model.get_description_ids(cur_labels)
             
             old_pool = model.get_description_ids(seen_labels)

@@ -61,6 +61,7 @@ class EoE(nn.Module):
         self.expert_distribution = {
                 "class_mean": [],
                 "accumulate_cov": torch.zeros(self.query_size, self.query_size),
+                "accumulate_cov_shared": torch.ones(self.query_size, self.query_size),
                 "cov_inv": torch.ones(self.query_size, self.query_size),
             }
         self.label_description = {}
@@ -111,6 +112,18 @@ class EoE(nn.Module):
         
         # Lưu mô tả nhãn vào label_description        
         self.label_description[label] = [self.preprocess_text(desc['generated_text'].replace(prompt, '').strip()) for desc in descriptions]
+        self.label_description_ids[label] = [self.preprocess_tokenize_desciption(desc, tokenizer) for desc in self.label_description[label]]
+
+    def take_generate_description_genai_from_file(self, label, dataset_name, tokenizer):
+        if dataset_name.lower() == 'fewrel':
+            file_path = 'datasets/FewRel/prompt_label/lb2des_fewrel.json'
+            with open(file_path, 'r', encoding='utf-8') as json_file:
+                data = json.load(json_file)
+                
+        raw_descriptions = data[label][:self.number_description]
+        
+        # Lưu mô tả nhãn vào label_description        
+        self.label_description[label] = [self.preprocess_text(desc) for desc in raw_descriptions]
         self.label_description_ids[label] = [self.preprocess_tokenize_desciption(desc, tokenizer) for desc in self.label_description[label]]
 
     def generate_description_from_file(self, label, dataset_name, tokenizer):
@@ -222,8 +235,9 @@ class EoE(nn.Module):
             length = self.num_tasks - expert_id + 2
         
         self.expert_distribution["class_mean"].extend(mean.cuda())
-        # self.expert_distribution["accumulate_cov"] = cov
-        avg_cov = self.expert_distribution["accumulate_cov"].cuda()
+        self.expert_distribution["accumulate_cov"] += cov
+        avg_cov = self.expert_distribution["accumulate_cov"].cuda() / length
+        self.expert_distribution["accumulate_cov_shared"] = avg_cov
         self.expert_distribution["cov_inv"] = torch.linalg.pinv(avg_cov, hermitian=True)
         
     def shift_expert_id(self, expert_id):
