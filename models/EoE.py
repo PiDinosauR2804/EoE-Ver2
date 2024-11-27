@@ -384,7 +384,6 @@ class EoE(nn.Module):
             logits = logits[:, :]
             preds = logits.max(dim=-1)[1]
             
-            
             loggerdb.log_metrics({"train/mlp2_{self.num_tasks}": loss.item()})
             
             indices = indices.tolist() if isinstance(indices, torch.Tensor) else indices
@@ -397,7 +396,8 @@ class EoE(nn.Module):
         
         # only for training
         
-        loss = None
+        # loss = None
+        loss = torch.tensor(0.0, device=self.device)
         
         hidden_states = self.feature_extractor(
             input_ids=input_ids,
@@ -412,6 +412,8 @@ class EoE(nn.Module):
         if self.training:
             offset_label = labels
             loss = F.cross_entropy(logits, offset_label) 
+            print("----CE Loss-------")
+            print(loss.item())
             loggerdb.log_metrics({f"train/loss_cross_entropy_{self.num_tasks}": loss.item()})
             anchor_hidden_states = hidden_states
             # print("1")
@@ -432,39 +434,28 @@ class EoE(nn.Module):
                 # Compute numerator: exp(h · μ_c / τ)
                 numerator_list = []
                 for class_mean in self.expert_distribution["class_mean"]:
-                    # print(class_mean)
-                    # print(anchor_hidden_states)
-                    # print(class_mean.shape)
-                    # print(anchor_hidden_states.shape)
                     numerator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
-                # numerator = torch.sum(torch.stack(numerator_list))
-                # print("4")
+
                 # Compute denominator: sum(exp(h · h' / τ)) + sum(exp(h · μ_c / τ))
                 denominator_list = []                
                 
                 denominator_list.append(torch.exp((anchor_hidden_states * description_hidden_states).sum(dim=1, keepdim=True) / self.tau))
                 denominator_list.extend(numerator_list)  # Add numerator terms for μ_c
-                denominator = torch.sum(torch.stack(denominator_list))
-                # print("5")
+                denominator = torch.sum(torch.stack(denominator_list), dim=0)
                 # Compute log term
                 log_term = torch.zeros(batch_size, 1, device=self.device)
                 for numerator in numerator_list:
                     log_term += torch.log(numerator / denominator)
-                    # print("------------------")
-                    # print(numerator)
-                    # print(denominator)
-                # loss += log_term.mean()
                 # print("6")
                 print(self.num_labels)
                 total_log_term += (log_term.mean() / self.num_labels)
             # print("7")
-            # print("----@@@@@@@@-------")
-            # print(total_log_term / len(description_ids_list))
-            loss += (total_log_term / len(description_ids_list)).item()
+            print("----CR Loss-------")
+            print(total_log_term / len(description_ids_list))
+            loss += (total_log_term / len(description_ids_list)).squeeze(0)
         
             
             old_description_ids_list = {k: v for k, v in kwargs.items() if k.startswith('old_description_ids_')}
-            total_old_loss = torch.zeros(1, device=self.device)
             for k, v in old_description_ids_list.items():
                 # print("2")
                 old_description_hidden_states = self.feature_extractor(
@@ -478,6 +469,8 @@ class EoE(nn.Module):
                 old_logits = self.classifier[self.num_tasks](description_hidden_states)
                 old_offset_label = kwargs['old_labels']
                 old_loss = F.cross_entropy(old_logits, old_offset_label) 
+                print("----Old CE Loss-------")
+                print(old_loss.item())
                 loggerdb.log_metrics({f"train/loss_old_cross_entropy_{self.num_tasks}": old_loss.item()})
                 # contrastive regularization Loss
                 # Compute numerator: exp(h · μ_c / τ)
@@ -490,14 +483,17 @@ class EoE(nn.Module):
                 denominator_list = []
                 
                 stack_u_c = []
+                
                 for label in old_offset_label:
-                    u_c = self.expert_distribution["class_mean"][label]
+                    idx = label.item() if isinstance(label, torch.Tensor) else label
+                    u_c = self.expert_distribution["class_mean"][idx]
                     stack_u_c.append(u_c)
+                
                 stack_u_c = torch.stack(stack_u_c)
                 
                 denominator_list.append(torch.exp((old_description_hidden_states * stack_u_c).sum(dim=1, keepdim=True) / self.tau))
                 denominator_list.extend(numerator_list)  # Add numerator terms for μ_c
-                denominator = torch.sum(torch.stack(denominator_list))
+                denominator = torch.sum(torch.stack(denominator_list), dim=0)
 
                 # Compute log term
                 log_term = torch.zeros(batch_size, 1, device=self.device)
@@ -505,12 +501,15 @@ class EoE(nn.Module):
                     log_term += torch.log(numerator / denominator)
 
                 # print(self.num_labels)
-                old_loss += (log_term.mean() / self.num_labels).item()
-
-            total_old_loss += (old_loss / len(old_description_ids_list)).item()
+                old_loss += (log_term.mean() / self.num_labels).squeeze(0)
+            print("----Old CR Loss-------")
+            print((old_loss / len(old_description_ids_list)).item())
             
-        loss += total_old_loss.item()
-            
+            # loss += old_loss / len(old_description_ids_list).squeeze(0)
+            loss += (old_loss / len(old_description_ids_list)).squeeze(0)
+                        
+        print("-------------Final---------")
+        print(loss)
         loggerdb.log_metrics({f"train/old_cr_loss_{self.num_tasks}": (old_loss / len(old_description_ids_list)).item()})
         loggerdb.log_metrics({f"train/cr_loss_{self.num_tasks}": (total_log_term / len(description_ids_list)).item()})
         loggerdb.log_metrics({f"train/total_loss_{self.num_tasks}": loss.item()})
