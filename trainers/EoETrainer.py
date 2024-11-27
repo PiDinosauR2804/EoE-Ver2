@@ -99,6 +99,8 @@ class EoETrainer(BaseTrainer):
                 data_collator=float_data_collator
             )      
 
+            print(model.classifier[-1].weight)
+            
             os.makedirs(f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}", exist_ok=True)
             model.save_classifier(
                 idx=self.task_idx,

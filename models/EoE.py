@@ -194,14 +194,6 @@ class EoE(nn.Module):
 
         self.feature_extractor.add_adapter(self.num_tasks)
 
-        # calculate distribution for each class with all expert model
-        # self.expert_distribution.append({
-        #     "class_mean": [torch.zeros(self.class_per_task, self.query_size).to(self.device) for _ in
-        #                    range(self.num_tasks)],
-        #     "accumulate_cov": torch.zeros(self.query_size, self.query_size),
-        #     "cov_inv": torch.ones(self.query_size, self.query_size),
-        # })
-
     def save_classifier(self, idx, save_dir):
         state_dict = self.classifier[idx].state_dict()
         torch.save({
@@ -228,10 +220,6 @@ class EoE(nn.Module):
             length = self.num_tasks + 1
         else:
             length = self.num_tasks - expert_id + 2
-        # self.expert_distribution[expert_id]["class_mean"].append(mean.cuda())
-        # self.expert_distribution[expert_id]["accumulate_cov"] += cov
-        # avg_cov = self.expert_distribution[expert_id]["accumulate_cov"].cuda() / length
-        # self.expert_distribution[expert_id]["cov_inv"] = torch.linalg.pinv(avg_cov, hermitian=True)
         
         self.expert_distribution["class_mean"].extend(mean.cuda())
         # self.expert_distribution["accumulate_cov"] = cov
@@ -334,24 +322,11 @@ class EoE(nn.Module):
                 **kwargs
             )
             
-            logits_list = []
-            for i in range(batch_size):
-                if oracle:
-                    idx = kwargs["task_idx"]
-                else:
-                    idx = -1
-                classifier = self.classifier[idx]
-                hs = hidden_states_final[i].unsqueeze(0)
-                logits = classifier(hs)
-                # print(logits)
-                logits_list.append(logits)
-            # print("-------------Classifier MLP 1--------------------")
-            # print(logits)
-            # Kết hợp logits từ tất cả các mẫu
-            logits_final = torch.cat(logits_list, dim=0)
-
+            classifier = self.classifier[-1]
+            logits = classifier(hidden_states_final)
+            
             # Lấy dự đoán cuối cùng
-            preds = logits_final.argmax(dim=-1)
+            preds = logits.argmax(dim=-1)
             # print("Grouth Truth Class")
             # print(labels)
             # print("Predict Label")
@@ -465,9 +440,9 @@ class EoE(nn.Module):
                     extract_mode="cls",
                     **kwargs
                 )
-                
-                old_logits = self.classifier[self.num_tasks](description_hidden_states)
+                old_logits = self.classifier[self.num_tasks](old_description_hidden_states)
                 old_offset_label = kwargs['old_labels']
+                # print(old_offset_label)
                 old_loss = F.cross_entropy(old_logits, old_offset_label) 
                 # print("----Old CE Loss-------")
                 # print(old_loss.item())
@@ -510,7 +485,7 @@ class EoE(nn.Module):
                         
         # print("-------------Final---------")
         # print(loss)
-        loggerdb.log_metrics({f"train/old_cr_loss_{self.num_tasks}": (old_loss / len(old_description_ids_list)).item()})
+        loggerdb.log_metrics({f"train/old_cr_loss_{self.num_tasks}": ((log_term.mean() / self.num_labels)).item()})
         loggerdb.log_metrics({f"train/cr_loss_{self.num_tasks}": (total_log_term / len(description_ids_list)).item()})
         loggerdb.log_metrics({f"train/total_loss_{self.num_tasks}": loss.item()})
             
