@@ -509,7 +509,7 @@ class EoE(nn.Module):
 
             total_old_loss += (old_loss / len(old_description_ids_list)).item()
             
-        loss += total_old_loss
+        loss += total_old_loss.item()
             
         loggerdb.log_metrics({f"train/old_cr_loss_{self.num_tasks}": (old_loss / len(old_description_ids_list)).item()})
         loggerdb.log_metrics({f"train/cr_loss_{self.num_tasks}": (total_log_term / len(description_ids_list)).item()})
