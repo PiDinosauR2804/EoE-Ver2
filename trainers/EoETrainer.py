@@ -89,6 +89,9 @@ class EoETrainer(BaseTrainer):
             
             print(model.num_labels)
             
+            
+            print(model.expert_distribution['class_mean'])
+            print(model.expert_distribution['accumulate_cov_shared'])
             baseHidden = BaseHidden(model.num_labels, model.expert_distribution['class_mean'], model.expert_distribution['accumulate_cov_shared'])
             hidden_data = baseHidden.generate_hidden_data()
             hidden_dataset = BaseDataset(hidden_data)  
