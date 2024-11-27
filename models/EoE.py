@@ -443,7 +443,7 @@ class EoE(nn.Module):
                 # print('------@@@@Term2-------')
                 # print(loss)
                 
-                loggerdb.log_metrics({"train/loss_mlp1_term2_{self.num_tasks}": loss.item()})
+                loggerdb.log_metrics({f"train/loss_mlp1_term2_{self.num_tasks}": loss.item()})
                 
                 indices = indices.tolist() if isinstance(indices, torch.Tensor) else indices
                 return ExpertOutput(
@@ -469,6 +469,7 @@ class EoE(nn.Module):
             loggerdb.log_metrics({"train/loss_cross_entropy": loss.item()})
             anchor_hidden_states = hidden_states
             # print("1")
+            
             description_ids_list = {k: v for k, v in kwargs.items() if k.startswith('description_ids_')}
             total_log_term = torch.zeros(1, device=self.device)
             for k, v in description_ids_list.items():
@@ -480,12 +481,8 @@ class EoE(nn.Module):
                     extract_mode="cls",
                     **kwargs
                 )
-                # print("description_hidden_states")
-                # print(description_hidden_states)
-                # info_nce_loss_value = self.info_nce_loss(anchor_hidden_states, description_hidden_states)
                 
                 # contrastive regularization Loss
-                # print("3")
                 # Compute numerator: exp(h · μ_c / τ)
                 numerator_list = []
                 for class_mean in self.expert_distribution["class_mean"]:
@@ -518,6 +515,56 @@ class EoE(nn.Module):
             # print("----@@@@@@@@-------")
             # print(total_log_term / len(description_ids_list))
             loss += (total_log_term / len(description_ids_list)).item()
+            
+            
+            
+            
+            old_description_ids_list = {k: v for k, v in kwargs.items() if k.startswith('old_description_ids_')}
+            total_old_loss = torch.zeros(1, device=self.device)
+            for k, v in old_description_ids_list.items():
+                # print("2")
+                description_hidden_states = self.feature_extractor(
+                    input_ids=v,
+                    attention_mask=(v != 0),
+                    indices=indices,
+                    extract_mode="cls",
+                    **kwargs
+                )
+                
+                old_logits = self.classifier[self.num_tasks](description_hidden_states)
+                old_offset_label = kwargs['old_labels']
+                old_loss = F.cross_entropy(old_logits, old_offset_label) 
+                
+                # contrastive regularization Loss
+                # Compute numerator: exp(h · μ_c / τ)
+                numerator_list = []
+                for class_mean in self.expert_distribution["class_mean"]:
+                    # print(class_mean)
+                    # print(anchor_hidden_states)
+                    # print(class_mean.shape)
+                    # print(anchor_hidden_states.shape)
+                    numerator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                # numerator = torch.sum(torch.stack(numerator_list))
+                # print("4")
+                # Compute denominator: sum(exp(h · h' / τ)) + sum(exp(h · μ_c / τ))
+                denominator_list = []                
+                
+                denominator_list.append(torch.exp((anchor_hidden_states * description_hidden_states).sum(dim=1, keepdim=True) / self.tau))
+                denominator_list.extend(numerator_list)  # Add numerator terms for μ_c
+                denominator = torch.sum(torch.stack(denominator_list))
+                # print("5")
+                # Compute log term
+                log_term = torch.zeros(batch_size, 1, device=self.device)
+                for numerator in numerator_list:
+                    log_term += torch.log(numerator / denominator)
+
+                # print(self.num_labels)
+                old_loss += (log_term.mean() / self.num_labels).item()
+
+            total_old_loss += (old_loss / len(old_description_ids_list)).item()
+        
+        loss += total_old_loss
+            
         # logger.log_metrics({"train/loss": loss})
         loggerdb.log_metrics({"train/cr_loss": (total_log_term / len(description_ids_list)).item()})
         loggerdb.log_metrics({"train/total_loss": loss.item()})

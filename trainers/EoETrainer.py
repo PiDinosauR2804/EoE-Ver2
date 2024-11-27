@@ -53,7 +53,7 @@ class EoETrainer(BaseTrainer):
                 model.generate_description(cur_label, self.args.dataset_name, tokenizer)
             pool = model.get_description_ids(cur_labels)
             
-            train_data = data.filter_and_add_desciption(cur_labels, pool) 
+            train_data = data.filter_and_add_desciption_and_old_description(cur_labels, pool) 
             train_data_old = data.filter(cur_labels, "train") 
             
             # sample = train_data[0]
@@ -66,16 +66,6 @@ class EoETrainer(BaseTrainer):
             # print(tokenizer.vocab_size)
             train_dataset = BaseDataset(train_data)
             train_dataset_old = BaseDataset(train_data_old)     
-            
-            if self.task_idx != 0:
-                pool_mlp1_term2 = model.get_description_ids(seen_labels)
-                train_data_mlp1_term2 = data.filler_add_old_description(seen_labels, pool_mlp1_term2, 30)
-                train_dataset_mlp1_term2 = BaseDataset(train_data_mlp1_term2)
-                
-                # sample = train_data_mlp1_term2[0]
-                # print("Anchor Sample MLP1 Term2:")
-                # for key, value in sample.items():
-                #     print(f"  {key}: {value}") 
             
             seen_labels += cur_labels
             
@@ -94,26 +84,13 @@ class EoETrainer(BaseTrainer):
                     data_collator=default_data_collator
                 )
                 
-            # print("3")
-            # print(tokenizer.vocab_size)
             self.statistic(model, train_dataset_old, default_data_collator)
             
             print(model.num_labels)
             
-            if self.task_idx != 0:
-                self.train(
-                    model=model,
-                    train_dataset=train_dataset_mlp1_term2,
-                    data_collator=default_data_collator
-                )
             baseHidden = BaseHidden(model.num_labels, model.expert_distribution['class_mean'], model.expert_distribution['accumulate_cov'])
             hidden_data = baseHidden.generate_hidden_data()
-            hidden_dataset = BaseDataset(hidden_data)
-                        
-            # sample = hidden_data[0]
-            # print("Anchor Sample:")
-            # for key, value in sample.items():
-            #     print(f"  {key}: {value}")      
+            hidden_dataset = BaseDataset(hidden_data)  
                 
             self.train_mlp2(
                 model=model,
