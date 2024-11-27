@@ -53,7 +53,8 @@ class EoETrainer(BaseTrainer):
                 model.generate_description(cur_label, self.args.dataset_name, tokenizer)
             pool = model.get_description_ids(cur_labels)
             
-            train_data = data.filter_and_add_desciption_and_old_description(cur_labels, pool) 
+            old_pool = model.get_description_ids(seen_labels)
+            train_data = data.filter_and_add_desciption_and_old_description(cur_labels, pool, seen_labels, old_pool) 
             train_data_old = data.filter(cur_labels, "train") 
             
             # sample = train_data[0]

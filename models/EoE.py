@@ -343,7 +343,7 @@ class EoE(nn.Module):
                 classifier = self.classifier[idx]
                 hs = hidden_states_final[i].unsqueeze(0)
                 logits = classifier(hs)
-                print(logits)
+                # print(logits)
                 logits_list.append(logits)
             # print("-------------Classifier MLP 1--------------------")
             # print(logits)
