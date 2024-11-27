@@ -412,8 +412,8 @@ class EoE(nn.Module):
         if self.training:
             offset_label = labels
             loss = F.cross_entropy(logits, offset_label) 
-            print("----CE Loss-------")
-            print(loss.item())
+            # print("----CE Loss-------")
+            # print(loss.item())
             loggerdb.log_metrics({f"train/loss_cross_entropy_{self.num_tasks}": loss.item()})
             anchor_hidden_states = hidden_states
             # print("1")
@@ -450,8 +450,8 @@ class EoE(nn.Module):
                 print(self.num_labels)
                 total_log_term += (log_term.mean() / self.num_labels)
             # print("7")
-            print("----CR Loss-------")
-            print(total_log_term / len(description_ids_list))
+            # print("----CR Loss-------")
+            # print(total_log_term / len(description_ids_list))
             loss += (total_log_term / len(description_ids_list)).squeeze(0)
         
             
@@ -469,8 +469,8 @@ class EoE(nn.Module):
                 old_logits = self.classifier[self.num_tasks](description_hidden_states)
                 old_offset_label = kwargs['old_labels']
                 old_loss = F.cross_entropy(old_logits, old_offset_label) 
-                print("----Old CE Loss-------")
-                print(old_loss.item())
+                # print("----Old CE Loss-------")
+                # print(old_loss.item())
                 loggerdb.log_metrics({f"train/loss_old_cross_entropy_{self.num_tasks}": old_loss.item()})
                 # contrastive regularization Loss
                 # Compute numerator: exp(h · μ_c / τ)
@@ -502,14 +502,14 @@ class EoE(nn.Module):
 
                 # print(self.num_labels)
                 old_loss += (log_term.mean() / self.num_labels).squeeze(0)
-            print("----Old CR Loss-------")
-            print((old_loss / len(old_description_ids_list)).item())
+            # print("----Old CR Loss-------")
+            # print((old_loss / len(old_description_ids_list)).item())
             
             # loss += old_loss / len(old_description_ids_list).squeeze(0)
             loss += (old_loss / len(old_description_ids_list)).squeeze(0)
                         
-        print("-------------Final---------")
-        print(loss)
+        # print("-------------Final---------")
+        # print(loss)
         loggerdb.log_metrics({f"train/old_cr_loss_{self.num_tasks}": (old_loss / len(old_description_ids_list)).item()})
         loggerdb.log_metrics({f"train/cr_loss_{self.num_tasks}": (total_log_term / len(description_ids_list)).item()})
         loggerdb.log_metrics({f"train/total_loss_{self.num_tasks}": loss.item()})
