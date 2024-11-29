@@ -34,9 +34,9 @@ class EoE(nn.Module):
         self.tau = 0.8
         self.feature_extractor = PeftFeatureExtractor(config)
         
-        self.weight_ce_wtp = 0.9
-        self.weight_cr_wtp = 0.05
-        self.weight_old_cr_wtp = 0.05
+        self.weight_ce_wtp = 0.8
+        self.weight_cr_wtp = 0.1
+        self.weight_old_cr_wtp = 0.1
         
         self.num_old_labels = 0
         self.num_labels = 0
@@ -148,8 +148,12 @@ class EoE(nn.Module):
             data = file.readlines()
                 
 
-
+        # print(idx_label)
         raw_descriptions = data[idx_label].split('\t')[2:2+self.number_description]
+        # for raw_description in raw_descriptions:
+        #     print('------------------')
+        #     print(raw_description)
+        #     print(len(raw_description.split(' ')))
         
         # Lưu mô tả nhãn vào label_description        
         self.label_description[label] = [self.preprocess_text(desc) for desc in raw_descriptions]
