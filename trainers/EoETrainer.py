@@ -87,11 +87,11 @@ class EoETrainer(BaseTrainer):
                 
             self.statistic(model, train_dataset_old, default_data_collator)
             
-            print(model.num_labels)
+            # print(model.num_labels)
             
             
-            print(model.un_expert_distribution['class_mean'])
-            print(model.un_expert_distribution['accumulate_cov_shared'])
+            # print(model.un_expert_distribution['class_mean'])
+            # print(model.un_expert_distribution['accumulate_cov_shared'])
             baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['accumulate_cov_shared'])
             un_hidden_data = baseUnHidden.generate_hidden_data()
             un_hidden_dataset = BaseDataset(un_hidden_data)  
