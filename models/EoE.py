@@ -148,7 +148,8 @@ class EoE(nn.Module):
             data = file.readlines()
                 
 
-        raw_descriptions = data[idx_label][:self.number_description]
+
+        raw_descriptions = data[idx_label].split('\t')[2:2+self.number_description]
         
         # Lưu mô tả nhãn vào label_description        
         self.label_description[label] = [self.preprocess_text(desc) for desc in raw_descriptions]
