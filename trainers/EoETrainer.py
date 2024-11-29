@@ -90,19 +90,34 @@ class EoETrainer(BaseTrainer):
             print(model.num_labels)
             
             
-            print(model.expert_distribution['class_mean'])
-            print(model.expert_distribution['accumulate_cov_shared'])
-            baseHidden = BaseHidden(model.num_labels, model.expert_distribution['class_mean'], model.expert_distribution['accumulate_cov_shared'])
-            hidden_data = baseHidden.generate_hidden_data()
-            hidden_dataset = BaseDataset(hidden_data)  
+            print(model.un_expert_distribution['class_mean'])
+            print(model.un_expert_distribution['accumulate_cov_shared'])
+            baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['accumulate_cov_shared'])
+            un_hidden_data = baseUnHidden.generate_hidden_data()
+            un_hidden_dataset = BaseDataset(un_hidden_data)  
                 
-            self.train_mlp2(
+            self.train_mlp(
                 model=model,
-                train_dataset=hidden_dataset,
-                data_collator=float_data_collator
+                train_dataset=un_hidden_dataset,
+                data_collator=float_data_collator,
+                training_mlp2=True
             )      
 
-            print(model.classifier[-1].weight)
+            # print(model.classifier[-1].weight)
+            
+            print(model.in_expert_distribution['class_mean'])
+            print(model.in_expert_distribution['accumulate_cov_shared'])
+            baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['accumulate_cov_shared'])
+            in_hidden_data = baseInHidden.generate_hidden_data()
+            in_hidden_dataset = BaseDataset(in_hidden_data)  
+                
+            self.train_mlp(
+                model=model,
+                train_dataset=in_hidden_dataset,
+                data_collator=float_data_collator,
+                training_mlp2=False
+            ) 
+            
             
             os.makedirs(f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}", exist_ok=True)
             model.save_classifier(
@@ -147,7 +162,7 @@ class EoETrainer(BaseTrainer):
 
         # save distribution
         save_data = {
-            "distribution": model.expert_distribution,
+            "distribution": model.un_expert_distribution,
             "seen_labels": seen_labels,
             "label2id": data.label2id,
         }
@@ -227,7 +242,7 @@ class EoETrainer(BaseTrainer):
 
         progress_bar.close()
         
-    def train_mlp2(self, model, train_dataset, data_collator):
+    def train_mlp(self, model, train_dataset, data_collator, training_mlp2):
         train_dataloader = DataLoader(
             train_dataset,
             batch_size=self.args.train_batch_size,
@@ -269,7 +284,11 @@ class EoETrainer(BaseTrainer):
                 self.optimizer.zero_grad()
 
                 inputs = {k: v.to(self.args.device) for k, v in inputs.items()}
-                inputs.update({"mlp2": True})
+                inputs.update({"training_mlp": True})
+                if training_mlp2:
+                    inputs.update({"mlp2": True})
+                else:
+                    inputs.update({"mlp1": True})
 
                 outputs = model(**inputs)
                 loss = outputs.loss
@@ -359,11 +378,14 @@ class EoETrainer(BaseTrainer):
         return acc, hit_acc
 
     def statistic(self, model, dataset, data_collator):
-        mean, cov, task_mean, task_cov = self.get_mean_and_cov(model, dataset, data_collator, self.task_idx)
-        model.new_statistic(mean, cov, task_mean, task_cov, self.task_idx)
+        un_mean, un_cov, un_task_mean, un_task_cov = self.get_mean_and_cov(model, dataset, data_collator, False, self.task_idx)
+        model.new_statistic_uninstructed_representation(un_mean, un_cov, un_task_mean, un_task_cov, self.task_idx)
+        
+        in_mean, in_cov, in_task_mean, in_task_cov = self.get_mean_and_cov(model, dataset, data_collator, True, self.task_idx)
+        model.new_statistic_instructed_representation(in_mean, in_cov, in_task_mean, in_task_cov, self.task_idx)
 
     @torch.no_grad()
-    def get_mean_and_cov(self, model, dataset, data_collator, expert_id=0):
+    def get_mean_and_cov(self, model, dataset, data_collator, instructed_representation, expert_id=0):
         loader = DataLoader(
             dataset,
             batch_size=self.args.eval_batch_size,
@@ -378,6 +400,8 @@ class EoETrainer(BaseTrainer):
         for step, inputs in enumerate(loader):
             label = inputs.pop('labels')
             inputs = {k: v.to(self.args.device) for k, v in inputs.items()}
+            if instructed_representation:
+                inputs.update({"instructed_representation": True})
             inputs.update({"return_hidden_states": True})
             inputs.update({"task_idx": expert_id})
 
@@ -410,59 +434,3 @@ class EoETrainer(BaseTrainer):
         shared_cov = torch.stack(cov_over_classes).mean(dim=0)
 
         return mean_over_classes, shared_cov, task_mean, task_cov
-
-
-    # def statistic(self, model, dataset, data_collator):
-    #     for i in range(-1, self.task_idx + 1):
-    #         mean, cov, task_mean, task_cov = self.get_mean_and_cov(model, dataset, data_collator, i)
-    #         model.new_statistic(mean, cov, task_mean, task_cov, i)
-
-    # @torch.no_grad()
-    # def get_mean_and_cov(self, model, dataset, data_collator, expert_id=0):
-    #     loader = DataLoader(
-    #         dataset,
-    #         batch_size=self.args.eval_batch_size,
-    #         shuffle=False,
-    #         collate_fn=data_collator,
-    #     )
-    #     model.eval()
-
-    #     prelogits = []
-    #     labels = []
-
-    #     for step, inputs in enumerate(loader):
-    #         label = inputs.pop('labels')
-    #         inputs = {k: v.to(self.args.device) for k, v in inputs.items()}
-    #         inputs.update({"return_hidden_states": True})
-    #         inputs.update({"task_idx": expert_id})
-
-    #         prelogit = model(**inputs)
-
-    #         prelogits.extend(prelogit.tolist())
-    #         labels.extend(label.tolist())
-
-    #     prelogits = torch.tensor(prelogits)
-    #     labels = torch.tensor(labels)
-    #     labels_space = torch.unique(labels)
-
-    #     task_mean = prelogits.mean(dim=0)
-    #     task_cov = torch.cov((prelogits - task_mean).T)
-
-    #     mean_over_classes = []
-    #     cov_over_classes = []
-    #     for c in labels_space:
-    #         embeds = prelogits[labels == c]
-    #         if embeds.numel() > 0:
-    #             mean = embeds.mean(dim=0)
-    #             cov = torch.cov((embeds - mean).T)
-    #         else:
-    #             mean = task_mean
-    #             cov = task_cov
-    #         mean_over_classes.append(mean)
-    #         cov_over_classes.append(cov)
-
-    #     mean_over_classes = torch.stack(mean_over_classes)
-    #     shared_cov = torch.stack(cov_over_classes).mean(dim=0)
-
-    #     return mean_over_classes, shared_cov, task_mean, task_cov
-

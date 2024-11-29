@@ -58,12 +58,20 @@ class EoE(nn.Module):
         #         "cov_inv": torch.ones(self.query_size, self.query_size),
         #     }
         # ]
-        self.expert_distribution = {
+        self.un_expert_distribution = {
                 "class_mean": [],
                 "accumulate_cov": torch.zeros(self.query_size, self.query_size),
                 "accumulate_cov_shared": torch.ones(self.query_size, self.query_size),
                 "cov_inv": torch.ones(self.query_size, self.query_size),
             }
+        
+        self.in_expert_distribution = {
+                "class_mean": [],
+                "accumulate_cov": torch.zeros(self.query_size, self.query_size),
+                "accumulate_cov_shared": torch.ones(self.query_size, self.query_size),
+                "cov_inv": torch.ones(self.query_size, self.query_size),
+            }
+        
         self.label_description = {}
         self.label_description_ids = {}
         self.number_description = 3
@@ -227,26 +235,39 @@ class EoE(nn.Module):
         ckpt = torch.load(f"{save_dir}/classifier_only_bert-{idx}.pth")
         self.classifier_only_bert[idx].load_state_dict(ckpt["classifier_only_bert"])
 
-    def new_statistic(self, mean, cov, task_mean, task_cov, expert_id=0):
+    def new_statistic_uninstructed_representation(self, mean, cov, task_mean, task_cov, expert_id=0):
         expert_id = self.shift_expert_id(expert_id)
         if expert_id == 0 or expert_id == 1:
             length = self.num_tasks + 1
         else:
             length = self.num_tasks - expert_id + 2
         
-        self.expert_distribution["class_mean"].extend(mean.cuda())
-        self.expert_distribution["accumulate_cov"] += cov
-        avg_cov = self.expert_distribution["accumulate_cov"].cuda() / length
-        self.expert_distribution["accumulate_cov_shared"] = avg_cov
-        self.expert_distribution["cov_inv"] = torch.linalg.pinv(avg_cov, hermitian=True)
+        self.un_expert_distribution["class_mean"].extend(mean.cuda())
+        self.un_expert_distribution["accumulate_cov"] += cov
+        avg_cov = self.un_expert_distribution["accumulate_cov"].cuda() / length
+        self.un_expert_distribution["accumulate_cov_shared"] = avg_cov
+        self.un_expert_distribution["cov_inv"] = torch.linalg.pinv(avg_cov, hermitian=True)
+        
+    def new_statistic_instructed_representation(self, mean, cov, task_mean, task_cov, expert_id=0):
+        expert_id = self.shift_expert_id(expert_id)
+        if expert_id == 0 or expert_id == 1:
+            length = self.num_tasks + 1
+        else:
+            length = self.num_tasks - expert_id + 2
+        
+        self.in_expert_distribution["class_mean"].extend(mean.cuda())
+        self.in_expert_distribution["accumulate_cov"] += cov
+        avg_cov = self.in_expert_distribution["accumulate_cov"].cuda() / length
+        self.in_expert_distribution["accumulate_cov_shared"] = avg_cov
+        self.in_expert_distribution["cov_inv"] = torch.linalg.pinv(avg_cov, hermitian=True)
         
     def shift_expert_id(self, expert_id):
         return expert_id + 1
 
     def get_prompt_indices(self, prelogits, expert_id=0):
         expert_id = self.shift_expert_id(expert_id)
-        task_means_over_classes = self.expert_distribution[expert_id]["class_mean"]
-        cov_inv = self.expert_distribution[expert_id]["cov_inv"]
+        task_means_over_classes = self.un_expert_distribution[expert_id]["class_mean"]
+        cov_inv = self.un_expert_distribution[expert_id]["cov_inv"]
 
         scores_over_tasks = []
         class_indices_over_tasks = []
@@ -295,6 +316,22 @@ class EoE(nn.Module):
                     input_ids=input_ids,
                     attention_mask=(input_ids!=0),
                     indices=None,
+                    **kwargs
+                )
+                if "extract_mode" in kwargs:
+                    del kwargs["extract_mode"]
+                return hidden_states
+            
+            if "return_hidden_states_by_prompt" in kwargs and kwargs["return_hidden_states"]:
+                # input task idx 0-9 -1:bert
+                if "instructed_representation" in kwargs and kwargs["instructed_representation"]:
+                    indices = torch.LongTensor([self.num_tasks] * batch_size).to(self.device)
+                else:
+                    indices = None
+                hidden_states = self.feature_extractor(
+                    input_ids=input_ids,
+                    attention_mask=(input_ids!=0),
+                    indices=indices,
                     **kwargs
                 )
                 if "extract_mode" in kwargs:
@@ -358,17 +395,20 @@ class EoE(nn.Module):
                 indices=indices_task_id
             )
 
-        if "mlp2" in kwargs and kwargs["mlp2"]:
+        if "training_mlp" in kwargs and kwargs["training_mlp"]:
             hidden_states = input_ids
             # print("train--------------MLP2")
             # print(self.num_tasks)
             # print(len(self.classifier_only_bert))
-            logits = self.classifier_only_bert[self.num_tasks](hidden_states)
+            if "mlp1" in kwargs and kwargs["mlp1"]:
+                logits = self.classifier[self.num_tasks](hidden_states)
+            if "mlp2" in kwargs and kwargs["mlp2"]:
+                logits = self.classifier_only_bert[self.num_tasks](hidden_states)
             # print("-------------Training Classifier MLP 2--------------------")
             # print(logits)
-            if self.training:
-                offset_label = labels.to(dtype=torch.long)
-                loss = F.cross_entropy(logits, offset_label)
+            # if self.training:
+            offset_label = labels.to(dtype=torch.long)
+            loss = F.cross_entropy(logits, offset_label)
             
             logits = logits[:, :]
             preds = logits.max(dim=-1)[1]
@@ -401,8 +441,8 @@ class EoE(nn.Module):
         if self.training:
             offset_label = labels
             loss = F.cross_entropy(logits, offset_label) 
-            # print("----CE Loss-------")
-            # print(loss.item())
+            print("----CE Loss-------")
+            print(loss.item())
             loggerdb.log_metrics({f"train/loss_cross_entropy_{self.num_tasks}": loss.item()})
             anchor_hidden_states = hidden_states
             # print("1")
@@ -422,7 +462,7 @@ class EoE(nn.Module):
                 # contrastive regularization Loss
                 # Compute numerator: exp(h · μ_c / τ)
                 numerator_list = []
-                for class_mean in self.expert_distribution["class_mean"]:
+                for class_mean in self.in_expert_distribution["class_mean"]:
                     numerator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
 
                 # Compute denominator: sum(exp(h · h' / τ)) + sum(exp(h · μ_c / τ))
@@ -436,15 +476,16 @@ class EoE(nn.Module):
                 for numerator in numerator_list:
                     log_term += torch.log(numerator / denominator)
                 # print("6")
-                print(self.num_labels)
-                total_log_term += (log_term.mean() / self.num_labels)
+                # print(self.num_labels)
+                total_log_term += (log_term.mean() / self.num_old_labels)
             # print("7")
-            # print("----CR Loss-------")
-            # print(total_log_term / len(description_ids_list))
+            print("----CR Loss-------")
+            print((total_log_term / len(description_ids_list)).item())
             loss += (total_log_term / len(description_ids_list)).squeeze(0)
         
             
             old_description_ids_list = {k: v for k, v in kwargs.items() if k.startswith('old_description_ids_')}
+            total_old_log_term = torch.zeros(1, device=self.device)
             for k, v in old_description_ids_list.items():
                 # print("2")
                 old_description_hidden_states = self.feature_extractor(
@@ -454,17 +495,11 @@ class EoE(nn.Module):
                     extract_mode="cls",
                     **kwargs
                 )
-                old_logits = self.classifier[self.num_tasks](old_description_hidden_states)
                 old_offset_label = kwargs['old_labels']
-                # print(old_offset_label)
-                old_loss = F.cross_entropy(old_logits, old_offset_label) 
-                # print("----Old CE Loss-------")
-                # print(old_loss.item())
-                loggerdb.log_metrics({f"train/loss_old_cross_entropy_{self.num_tasks}": old_loss.item()})
                 # contrastive regularization Loss
                 # Compute numerator: exp(h · μ_c / τ)
                 numerator_list = []
-                for class_mean in self.expert_distribution["class_mean"]:
+                for class_mean in self.un_expert_distribution["class_mean"]:
                     numerator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
                 # numerator = torch.sum(torch.stack(numerator_list))
                 
@@ -475,7 +510,7 @@ class EoE(nn.Module):
                 
                 for label in old_offset_label:
                     idx = label.item() if isinstance(label, torch.Tensor) else label
-                    u_c = self.expert_distribution["class_mean"][idx]
+                    u_c = self.un_expert_distribution["class_mean"][idx]
                     stack_u_c.append(u_c)
                 
                 stack_u_c = torch.stack(stack_u_c)
@@ -490,16 +525,15 @@ class EoE(nn.Module):
                     log_term += torch.log(numerator / denominator)
 
                 # print(self.num_labels)
-                old_loss += (log_term.mean() / self.num_labels).squeeze(0)
-            # print("----Old CR Loss-------")
-            # print((old_loss / len(old_description_ids_list)).item())
+                total_old_log_term += (log_term.mean() / self.num_old_labels)
             
-            # loss += old_loss / len(old_description_ids_list).squeeze(0)
-            loss += (old_loss / len(old_description_ids_list)).squeeze(0)
+            loss += (total_old_log_term / len(old_description_ids_list)).squeeze(0)
+            print("----CR Loss-------")
+            print((total_old_log_term / len(old_description_ids_list)).item())
                         
         # print("-------------Final---------")
         # print(loss)
-        loggerdb.log_metrics({f"train/old_cr_loss_{self.num_tasks}": ((log_term.mean() / self.num_labels)).item()})
+        loggerdb.log_metrics({f"train/old_cr_loss_{self.num_tasks}": (total_old_log_term / len(old_description_ids_list)).item()})
         loggerdb.log_metrics({f"train/cr_loss_{self.num_tasks}": (total_log_term / len(description_ids_list)).item()})
         loggerdb.log_metrics({f"train/total_loss_{self.num_tasks}": loss.item()})
             
