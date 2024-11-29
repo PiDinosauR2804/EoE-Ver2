@@ -314,9 +314,7 @@ class EoE(nn.Module):
                 # input task idx 0-9 -1:bert
                 if "instructed_representation" in kwargs and kwargs["instructed_representation"]:
                     indices = torch.LongTensor([self.num_tasks] * batch_size).to(self.device)
-                    print("instructed_representation")
                 else:
-                    print("unnstructed_representation")
                     indices = None
                 hidden_states = self.feature_extractor(
                     input_ids=input_ids,
@@ -430,9 +428,9 @@ class EoE(nn.Module):
         # print(logits)
         if self.training:
             offset_label = labels
-            loss = F.cross_entropy(logits, offset_label) 
-            print("----CE Loss-------")
-            print(loss.item())
+            loss = 0.7 * F.cross_entropy(logits, offset_label) 
+            # print("----CE Loss-------")
+            # print(loss.item())
             loggerdb.log_metrics({f"train/loss_cross_entropy_{self.num_tasks}": loss.item()})
             anchor_hidden_states = hidden_states
             # print("1")
@@ -469,9 +467,9 @@ class EoE(nn.Module):
                 # print(self.num_labels)
                 total_log_term += (log_term.mean() / self.num_old_labels)
             # print("7")
-            print("----CR Loss-------")
-            print((total_log_term / len(description_ids_list)).item())
-            loss += (total_log_term / len(description_ids_list)).squeeze(0)
+            # print("----CR Loss-------")
+            # print((total_log_term / len(description_ids_list)).item())
+            loss += 0.15 *  (total_log_term / len(description_ids_list)).squeeze(0)
         
             
             old_description_ids_list = {k: v for k, v in kwargs.items() if k.startswith('old_description_ids_')}
@@ -517,9 +515,9 @@ class EoE(nn.Module):
                 # print(self.num_labels)
                 total_old_log_term += (log_term.mean() / self.num_old_labels)
             
-            loss += (total_old_log_term / len(old_description_ids_list)).squeeze(0)
-            print("----Old CR Loss-------")
-            print((total_old_log_term / len(old_description_ids_list)).item())
+            loss += 0.15 * (total_old_log_term / len(old_description_ids_list)).squeeze(0)
+            # print("----Old CR Loss-------")
+            # print((total_old_log_term / len(old_description_ids_list)).item())
                         
         # print("-------------Final---------")
         # print(loss)
