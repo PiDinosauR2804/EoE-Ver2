@@ -80,6 +80,7 @@ class EoE(nn.Module):
         self.label_description = {}
         self.label_description_ids = {}
         self.number_description = 3
+        self.description_matrix = None
         self.classifier = nn.ParameterList()
         self.classifier_only_bert = nn.ParameterList()
         
@@ -327,12 +328,6 @@ class EoE(nn.Module):
 
         return indices, scores_over_tasks, class_indices_over_tasks
 
-    def get_weight_euclide_distance(self, hidden_states, means):
-        distance_matrix = cdist(hidden_states, means, metric='euclidean')
-        A_inverse = 1 / distance_matrix
-        A_normalized = A_inverse / A_inverse.sum(axis=1, keepdims=True)
-        return
-
     def forward(self, input_ids, attention_mask=None, labels=None, oracle=False, **kwargs):
 
         batch_size, _ = input_ids.shape
@@ -356,6 +351,20 @@ class EoE(nn.Module):
                 )
                 if "extract_mode" in kwargs:
                     del kwargs["extract_mode"]
+                return hidden_states
+            
+            if "return_hidden_states_by_cls" in kwargs and kwargs["return_hidden_states_by_cls"]:
+                # input task idx 0-9 -1:bert
+                indices = None
+                if "extract_mode" in kwargs:
+                    del kwargs["extract_mode"]
+                hidden_states = self.feature_extractor(
+                    input_ids=input_ids,
+                    attention_mask=(input_ids!=0),
+                    indices=indices,
+                    extract_mode="cls",
+                    **kwargs
+                )
                 return hidden_states
             
             hidden_states = self.feature_extractor(
@@ -482,11 +491,18 @@ class EoE(nn.Module):
                     **kwargs
                 )
                 
+                stack_u_c = []
+                for label in offset_label:
+                    stack_u_c.append(self.description_matrix[label])
+                stack_u_c = torch.stack(stack_u_c)
+                stack_u_c = torch.tensor(stack_u_c, device=self.device)
+                
                 # contrastive regularization Loss
                 # Compute numerator: exp(h · μ_c / τ)
                 numerator_list = []
-                for class_mean in self.in_expert_distribution["class_mean"]:
-                    numerator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                for idx, class_mean in enumerate(self.in_expert_distribution["class_mean"]):
+                    # numerator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
 
                 # Compute denominator: sum(exp(h · h' / τ)) + sum(exp(h · μ_c / τ))
                 denominator_list = []                
@@ -521,22 +537,22 @@ class EoE(nn.Module):
                 old_offset_label = kwargs['old_labels']
                 # contrastive regularization Loss
                 # Compute numerator: exp(h · μ_c / τ)
+                
+                stack_u_c = []
+                for label in old_offset_label:
+                    stack_u_c.append(self.description_matrix[label])
+                stack_u_c = torch.stack(stack_u_c)
+                stack_u_c = torch.tensor(stack_u_c, device=self.device)
+                
                 numerator_list = []
-                for class_mean in self.in_expert_distribution["class_mean"]:
-                    numerator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                for idx, class_mean in enumerate(self.in_expert_distribution["class_mean"]):
+                    # numerator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+
                 # numerator = torch.sum(torch.stack(numerator_list))
                 
                 # Compute denominator: sum(exp(h · h' / τ)) + sum(exp(h · μ_c / τ))
                 denominator_list = []
-                
-                # stack_u_c = []
-                
-                # for label in old_offset_label:
-                #     idx = label.item() if isinstance(label, torch.Tensor) else label
-                #     u_c = self.un_expert_distribution["class_mean"][idx]
-                #     stack_u_c.append(u_c)
-                
-                # stack_u_c = torch.stack(stack_u_c)
                 
                 # denominator_list.append(torch.exp((old_description_hidden_states * stack_u_c).sum(dim=1, keepdim=True) / self.tau))
                 denominator_list.extend(numerator_list)  # Add numerator terms for μ_c

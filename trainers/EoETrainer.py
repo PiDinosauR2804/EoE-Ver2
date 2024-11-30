@@ -6,6 +6,8 @@ import pickle
 import hydra
 import torch
 import torch.nn as nn
+import numpy as np
+from scipy.spatial.distance import cdist
 from sklearn import metrics
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
@@ -65,9 +67,9 @@ class EoETrainer(BaseTrainer):
             #     print(f"  {key}: {value}") 
             
             
-            aug_train_data, num_train_labels = relation_data_augmentation_and_add_old_descriptions(
-                    copy.deepcopy(train_data), len(seen_labels), copy.deepcopy(data.id2label), marker_ids, self.args.augment_type
-                )   
+            # aug_train_data, num_train_labels = relation_data_augmentation_and_add_old_descriptions(
+            #         copy.deepcopy(train_data), len(seen_labels), copy.deepcopy(data.id2label), marker_ids, self.args.augment_type
+            #     )   
             
             # sample = train_data[0]
             # print("Anchor Sample:")
@@ -76,11 +78,15 @@ class EoETrainer(BaseTrainer):
             
             num_train_labels = len(cur_labels)
 
-            # train_dataset = BaseDataset(train_data)
-            train_dataset = BaseDataset(aug_train_data)
+            train_dataset = BaseDataset(train_data)
+            # train_dataset = BaseDataset(aug_train_data)
             train_dataset_old = BaseDataset(train_data_old)     
             
             seen_labels += cur_labels
+            
+            pool = model.get_description_ids(seen_labels)       
+            model.description_matrix = self.calculation_description_matrix(model, seen_labels, pool, model.number_description, default_data_collator)
+            print(model.description_matrix)
             
             model.new_task(num_train_labels)
             # print("2")
@@ -318,6 +324,47 @@ class EoETrainer(BaseTrainer):
                 progress_bar.set_postfix({"Loss": loss.item()})
         
         progress_bar.close()
+
+    @torch.no_grad()
+    def calculation_description_matrix(self, model, labels, description_ids, number_description_per_label, data_collator):
+        description_ids_data = []
+        for label in labels:
+            if label in description_ids.keys():
+                for v in description_ids[label]:
+                    ins = {
+                      "input_ids": v,
+                    }
+                    description_ids_data.append(ins)
+        
+        description_data = BaseDataset(description_ids_data)
+        loader = DataLoader(
+            description_data,
+            batch_size=self.args.eval_batch_size,
+            shuffle=False,
+            collate_fn=data_collator,
+        )
+        model.eval()
+        prelogits = []
+        labels = []
+
+        for step, inputs in enumerate(loader):
+            inputs = {k: v.to(self.args.device) for k, v in inputs.items()}
+            inputs.update({"return_hidden_states_by_cls": True})
+
+            prelogit = model(**inputs)
+
+            prelogits.extend(prelogit.tolist())
+        
+        prelogits = np.array(prelogits)
+        prelogits = prelogits.reshape(-1, number_description_per_label, model.query_size)
+        prelogits = prelogits.mean(axis=1)
+        prelogits = prelogits.reshape(-1, model.query_size)
+        
+        prelogits = torch.tensor(prelogits)
+        cosine_distance_matrix = cdist(prelogits, prelogits, metric='cosine')
+        
+        return torch.tensor(cosine_distance_matrix)
+      
 
     @torch.no_grad()
     def eval(self, model, eval_dataset, data_collator, seen_labels, label2task_id, oracle=False):

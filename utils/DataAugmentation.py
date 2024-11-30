@@ -191,9 +191,6 @@ def relation_data_augmentation_and_add_old_descriptions(data, num_labels, id2lab
                 new_ins.update({
                     'old_labels': copy.deepcopy(ins["old_labels"])
                 })
-            print("Anchor Sample:")
-            for key, value in new_ins.items():
-                print(f"  {key}: {value}") 
             
             # if lenght_seen_labels != 0:
             #     old_labels = seen_labels[count_negative_label%lenght_seen_labels]
@@ -251,11 +248,10 @@ def relation_data_augmentation_and_add_old_descriptions(data, num_labels, id2lab
                     key: value
                 })
             
-            new_ins.update({
-                'old_labels': copy.deepcopy(ins["old_labels"])
-            })
-            for key, value in new_ins.items():
-                print(f"  {key}: {value}") 
+            if "old_labels" in ins.keys():
+                new_ins.update({
+                    'old_labels': copy.deepcopy(ins["old_labels"])
+                })
             
             # if lenght_seen_labels != 0:
             #     old_labels = seen_labels[count_negative_label%lenght_seen_labels]
