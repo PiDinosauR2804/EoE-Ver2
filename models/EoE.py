@@ -380,7 +380,7 @@ class EoE(nn.Module):
                 task_idx = kwargs["task_idx"]
                 indices_task_id = torch.LongTensor([task_idx] * batch_size).to(self.device)
             else:
-                indices_task_id = indices // 8
+                indices_task_id = indices // self.class_per_task
                 indices_task_id = torch.tensor(indices_task_id, dtype=torch.long, device=self.device)
                 
             # print("Predict Task indices")
