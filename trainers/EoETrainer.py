@@ -361,7 +361,7 @@ class EoETrainer(BaseTrainer):
         prelogits = prelogits.reshape(-1, model.query_size)
         
         prelogits = torch.tensor(prelogits)
-        cosine_distance_matrix = cdist(prelogits, prelogits, metric='cosine')
+        cosine_distance_matrix = cdist(prelogits, prelogits, metric='cosine') * 20
         
         return torch.tensor(cosine_distance_matrix)
       
