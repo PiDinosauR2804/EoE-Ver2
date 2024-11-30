@@ -16,7 +16,7 @@ import wandb_logger as loggerdb
 
 from data import BaseDataset, BaseTripletDataset, BaseHidden
 from trainers import BaseTrainer
-from utils import CustomCollatorWithPadding, CustomFloatCollatorWithPadding, relation_data_augmentation, relation_data_augmentation_and_contrastive_learning
+from utils import CustomCollatorWithPadding, CustomFloatCollatorWithPadding, relation_data_augmentation, relation_data_augmentation_and_add_old_descriptions
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +59,9 @@ class EoETrainer(BaseTrainer):
             old_pool = model.get_description_ids(seen_labels)
             train_data = data.filter_and_add_desciption_and_old_description(cur_labels, pool, seen_labels, old_pool) 
             
-            # aug_train_data, num_train_labels = relation_data_augmentation(
-            #         copy.deepcopy(train_data), len(seen_labels), copy.deepcopy(data.id2label), marker_ids, self.args.augment_type
-            #     )   
+            aug_train_data, num_train_labels = relation_data_augmentation_and_add_old_descriptions(
+                    copy.deepcopy(train_data), len(seen_labels), copy.deepcopy(data.id2label), marker_ids, self.args.augment_type
+                )   
             
             # sample = train_data[0]
             # print("Anchor Sample:")
@@ -69,10 +69,9 @@ class EoETrainer(BaseTrainer):
             #     print(f"  {key}: {value}") 
             
             num_train_labels = len(cur_labels)
-            # print("1")
-            # print(tokenizer.vocab_size)
-            train_dataset = BaseDataset(train_data)
-            # train_dataset = BaseDataset(aug_train_data)
+
+            # train_dataset = BaseDataset(train_data)
+            train_dataset = BaseDataset(aug_train_data)
             train_dataset_old = BaseDataset(train_data_old)     
             
             seen_labels += cur_labels
@@ -81,8 +80,8 @@ class EoETrainer(BaseTrainer):
             # print("2")
             # print(tokenizer.vocab_size)
             if self.task_idx == 0:
-                expert_model = f"./ckpt/{self.args.dataset_name}_{seed}_{self.args.augment_type}.pth"
-                # expert_model = f"/content/drive/MyDrive/FewRel_2021_all.pth"
+                # expert_model = f"./ckpt/{self.args.dataset_name}_{seed}_{self.args.augment_type}.pth"
+                expert_model = f"/content/drive/MyDrive/FewRel_2021_all.pth"
                 model.load_expert_model(expert_model)
                 logger.info(f"load first task model from {expert_model}")
             else:
