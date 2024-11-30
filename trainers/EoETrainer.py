@@ -49,14 +49,19 @@ class EoETrainer(BaseTrainer):
             logger.info(f"***** Task-{task_idx + 1} *****")
             logger.info(f"Current classes: {' '.join(cur_labels)}")
             
+            train_data_old = data.filter(cur_labels, "train") 
+            
             for cur_label in cur_labels:
                 model.take_generate_description_genai_from_file(cur_label, self.args.dataset_name, tokenizer)
                 # model.take_generate_description_MrLinh_from_file(cur_label, data.label2id[cur_label], self.args.dataset_name, tokenizer)
+                
             pool = model.get_description_ids(cur_labels)
-            
             old_pool = model.get_description_ids(seen_labels)
             train_data = data.filter_and_add_desciption_and_old_description(cur_labels, pool, seen_labels, old_pool) 
-            train_data_old = data.filter(cur_labels, "train") 
+            
+            # aug_train_data, num_train_labels = relation_data_augmentation(
+            #         copy.deepcopy(train_data), len(seen_labels), copy.deepcopy(data.id2label), marker_ids, self.args.augment_type
+            #     )   
             
             # sample = train_data[0]
             # print("Anchor Sample:")
@@ -67,6 +72,7 @@ class EoETrainer(BaseTrainer):
             # print("1")
             # print(tokenizer.vocab_size)
             train_dataset = BaseDataset(train_data)
+            # train_dataset = BaseDataset(aug_train_data)
             train_dataset_old = BaseDataset(train_data_old)     
             
             seen_labels += cur_labels
