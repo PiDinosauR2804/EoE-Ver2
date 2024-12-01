@@ -371,7 +371,7 @@ class EoETrainer(BaseTrainer):
         normalized_matrix = (cosine_distance_matrix - row_min) / (row_max - row_min)
 
         # Rescale về [1, 3]
-        rescaled_matrix = 1 + normalized_matrix * (3 - 1)
+        rescaled_matrix = 1 + normalized_matrix * (2 - 1)
         
         return torch.tensor(rescaled_matrix)
       
