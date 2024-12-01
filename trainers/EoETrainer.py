@@ -92,8 +92,8 @@ class EoETrainer(BaseTrainer):
             # print("2")
             # print(tokenizer.vocab_size)
             if self.task_idx == 0:
-                # expert_model = f"./ckpt/{self.args.dataset_name}_{seed}_{self.args.augment_type}.pth"
-                expert_model = f"/content/drive/MyDrive/FewRel_2021_all.pth"
+                expert_model = f"./ckpt/{self.args.dataset_name}_{seed}_{self.args.augment_type}.pth"
+                # expert_model = f"/content/drive/MyDrive/FewRel_2021_all.pth"
                 model.load_expert_model(expert_model)
                 logger.info(f"load first task model from {expert_model}")
             else:
@@ -361,7 +361,8 @@ class EoETrainer(BaseTrainer):
         prelogits = prelogits.reshape(-1, model.query_size)
         
         prelogits = torch.tensor(prelogits)
-        cosine_distance_matrix = cdist(prelogits, prelogits, metric='cosine') * 20
+        cosine_distance_matrix = cdist(prelogits, prelogits, metric='cosine')
+        cosine_distance_matrix = torch.tensor(cosine_distance_matrix)
         
         row_min = cosine_distance_matrix.min(dim=1, keepdim=True).values
         row_max = cosine_distance_matrix.max(dim=1, keepdim=True).values
