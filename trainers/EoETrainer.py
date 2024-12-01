@@ -363,7 +363,16 @@ class EoETrainer(BaseTrainer):
         prelogits = torch.tensor(prelogits)
         cosine_distance_matrix = cdist(prelogits, prelogits, metric='cosine') * 20
         
-        return torch.tensor(cosine_distance_matrix)
+        row_min = cosine_distance_matrix.min(dim=1, keepdim=True).values
+        row_max = cosine_distance_matrix.max(dim=1, keepdim=True).values
+
+        # Normalize về [0, 1]
+        normalized_matrix = (cosine_distance_matrix - row_min) / (row_max - row_min)
+
+        # Rescale về [1, 3]
+        rescaled_matrix = 1 + normalized_matrix * (3 - 1)
+        
+        return torch.tensor(rescaled_matrix)
       
 
     @torch.no_grad()

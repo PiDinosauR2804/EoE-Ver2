@@ -349,15 +349,15 @@ class EoE(nn.Module):
                     indices=indices,
                     **kwargs
                 )
-                if "extract_mode" in kwargs:
-                    del kwargs["extract_mode"]
+                # if "extract_mode" in kwargs:
+                #     del kwargs["extract_mode"]
                 return hidden_states
             
             if "return_hidden_states_by_cls" in kwargs and kwargs["return_hidden_states_by_cls"]:
                 # input task idx 0-9 -1:bert
                 indices = None
-                if "extract_mode" in kwargs:
-                    del kwargs["extract_mode"]
+                # if "extract_mode" in kwargs:
+                #     del kwargs["extract_mode"]
                 hidden_states = self.feature_extractor(
                     input_ids=input_ids,
                     attention_mask=(input_ids!=0),
@@ -439,7 +439,6 @@ class EoE(nn.Module):
             offset_label = labels.to(dtype=torch.long)
             loss = F.cross_entropy(logits, offset_label)
             
-            logits = logits[:, :]
             preds = logits.max(dim=-1)[1]
             
             if "mlp1" in kwargs and kwargs["mlp1"]:
@@ -500,15 +499,14 @@ class EoE(nn.Module):
                 # contrastive regularization Loss
                 # Compute numerator: exp(h · μ_c / τ)
                 numerator_list = []
+                denominator_list = [] 
                 for idx, class_mean in enumerate(self.in_expert_distribution["class_mean"]):
-                    # numerator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    denominator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
                     numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
 
                 # Compute denominator: sum(exp(h · h' / τ)) + sum(exp(h · μ_c / τ))
-                denominator_list = []                
-                
+                                
                 denominator_list.append(torch.exp((anchor_hidden_states * description_hidden_states).sum(dim=1, keepdim=True) / self.tau))
-                denominator_list.extend(numerator_list)  # Add numerator terms for μ_c
                 denominator = torch.sum(torch.stack(denominator_list), dim=0)
                 # Compute log term
                 log_term = torch.zeros(batch_size, 1, device=self.device)
@@ -545,14 +543,15 @@ class EoE(nn.Module):
                 stack_u_c = torch.tensor(stack_u_c, device=self.device)
                 
                 numerator_list = []
+                denominator_list = []
                 for idx, class_mean in enumerate(self.in_expert_distribution["class_mean"]):
-                    # numerator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    denominator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
                     numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
 
                 # numerator = torch.sum(torch.stack(numerator_list))
                 
                 # Compute denominator: sum(exp(h · h' / τ)) + sum(exp(h · μ_c / τ))
-                denominator_list = []
+    
                 
                 # denominator_list.append(torch.exp((old_description_hidden_states * stack_u_c).sum(dim=1, keepdim=True) / self.tau))
                 denominator_list.extend(numerator_list)  # Add numerator terms for μ_c
