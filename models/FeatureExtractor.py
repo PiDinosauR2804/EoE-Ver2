@@ -44,6 +44,8 @@ class PeftFeatureExtractor(nn.Module):
 
         if config.task_name == "RelationExtraction":
             self.extract_mode = "entity_marker"
+        elif config.task_name == "RelationExtractionMask":
+            self.extract_mode = "mask_entity"
         else:
             raise NotImplementedError
 
@@ -213,6 +215,13 @@ class PeftFeatureExtractor(nn.Module):
                 obj = obj.mean(0)
                 hidden_states.append(torch.cat([subj, obj]))
             hidden_states = torch.stack(hidden_states, dim=0)
+            hidden_states = nn.functional.normalize(hidden_states, p=2, dim=-1)
+        elif extract_mode == "mask_entity":
+            # print("11")
+            mask_marked = kwargs["mask_marker"]
+            last_hidden_states = outputs[0]
+            idx = torch.arange(last_hidden_states.size(0)).to(last_hidden_states.device)
+            hidden_states = last_hidden_states[idx, mask_marked]
             hidden_states = nn.functional.normalize(hidden_states, p=2, dim=-1)
         elif extract_mode == "entity_marker":
             # print("12")

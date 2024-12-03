@@ -21,6 +21,7 @@ columns:
   - "subject_marker_st"
   - "object_marker_st"
   - "input_ids_without_marker"
+  - "mask_marker"
   - "subject_st"
   - "subject_ed"
   - "object_st"

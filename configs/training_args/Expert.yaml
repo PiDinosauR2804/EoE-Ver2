@@ -13,5 +13,6 @@ frozen: false
 columns:
   - "input_ids"
   - "labels"
+  - "mask_marker"
   - "subject_marker_st"
   - "object_marker_st"
