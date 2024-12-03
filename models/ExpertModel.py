@@ -29,8 +29,8 @@ class ExpertModel(nn.Module):
         self.num_labels = 0
 
         self.classifier_hidden_size = self.feature_extractor.bert.config.hidden_size
-        if config.task_name == "RelationExtraction":
-            self.classifier_hidden_size = 2 * self.feature_extractor.bert.config.hidden_size
+        # if config.task_name == "RelationExtraction":
+        #     self.classifier_hidden_size = 2 * self.feature_extractor.bert.config.hidden_size
 
         self.classifier = nn.Linear(self.classifier_hidden_size, self.num_labels)
 

@@ -43,7 +43,8 @@ class PeftFeatureExtractor(nn.Module):
         
 
         if config.task_name == "RelationExtraction":
-            self.extract_mode = "entity_marker"
+            self.extract_mode = "mask_entity"
+            # self.extract_mode = "entity_marker"
         elif config.task_name == "RelationExtractionMask":
             self.extract_mode = "mask_entity"
         else:

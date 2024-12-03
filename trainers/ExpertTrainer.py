@@ -51,9 +51,9 @@ class ExpertTrainer:
             train_data = data.filter(cur_labels, "train")
             # data augmentation
             num_train_labels = len(cur_labels)
-            train_data, num_train_labels = relation_data_augmentation(
-                train_data, len(seen_labels), copy.deepcopy(data.id2label), marker_ids, self.args.augment_type
-            )
+            # train_data, num_train_labels = relation_data_augmentation(
+            #     train_data, len(seen_labels), copy.deepcopy(data.id2label), marker_ids, self.args.augment_type
+            # )
             train_dataset = BaseDataset(train_data)
 
             model.new_task(num_train_labels)
