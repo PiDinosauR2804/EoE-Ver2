@@ -41,7 +41,7 @@ task_to_model = {
 }
 
 task_to_additional_special_tokens = {
-    "RelationExtraction": ["[E11]", "[E12]", "[E21]", "[E22]"]
+    "RelationExtraction": ["[E11]", "[E12]", "[E21]", "[E22]", "[MASK]"]
 }
 
 task_to_trainer = {
