@@ -54,8 +54,8 @@ class EoETrainer(BaseTrainer):
             train_data_old = data.filter(cur_labels, "train") 
             
             for cur_label in cur_labels:
-                model.take_generate_description_genai_from_file(cur_label, self.args.dataset_name, tokenizer)
-                # model.take_generate_description_MrLinh_from_file(cur_label, data.label2id[cur_label], self.args.dataset_name, tokenizer)
+                # model.take_generate_description_genai_from_file(cur_label, self.args.dataset_name, tokenizer)
+                model.take_generate_description_MrLinh_from_file(cur_label, data.label2id[cur_label], self.args.dataset_name, tokenizer)
                 
             pool = model.get_description_ids(cur_labels)
             old_pool = model.get_description_ids(seen_labels)
@@ -96,12 +96,12 @@ class EoETrainer(BaseTrainer):
                 # expert_model = f"/content/drive/MyDrive/FewRel_2021_all.pth"
                 model.load_expert_model(expert_model)
                 logger.info(f"load first task model from {expert_model}")
-            else:
-                self.train(
-                    model=model,
-                    train_dataset=train_dataset,
-                    data_collator=default_data_collator
-                )
+            # else:
+            #     self.train(
+            #         model=model,
+            #         train_dataset=train_dataset,
+            #         data_collator=default_data_collator
+            #     )
                 
             self.statistic(model, train_dataset_old, default_data_collator)
             
@@ -110,16 +110,18 @@ class EoETrainer(BaseTrainer):
             
             # print(model.un_expert_distribution['class_mean'])
             # print(model.un_expert_distribution['accumulate_cov_shared'])
-            baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['accumulate_cov_shared'])
-            un_hidden_data = baseUnHidden.generate_hidden_data(96)
-            un_hidden_dataset = BaseDataset(un_hidden_data)  
+            
+            
+            # baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['accumulate_cov_shared'])
+            # un_hidden_data = baseUnHidden.generate_hidden_data(96)
+            # un_hidden_dataset = BaseDataset(un_hidden_data)  
                 
-            self.train_mlp(
-                model=model,
-                train_dataset=un_hidden_dataset,
-                data_collator=float_data_collator,
-                training_mlp2=True
-            )      
+            # self.train_mlp(
+            #     model=model,
+            #     train_dataset=un_hidden_dataset,
+            #     data_collator=float_data_collator,
+            #     training_mlp2=True
+            # )      
 
             # print(model.classifier[-1].weight)
             # print("----------------------instructed representation----------------------")
@@ -129,29 +131,44 @@ class EoETrainer(BaseTrainer):
             # print("----------------------uninstructed representation----------------------")
             # print(model.un_expert_distribution['class_mean'])
             # print(model.un_expert_distribution['accumulate_cov_shared'])
-            baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['accumulate_cov_shared'])
-            in_hidden_data = baseInHidden.generate_hidden_data(192)
-            in_hidden_dataset = BaseDataset(in_hidden_data)  
+            
+            
+            # baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['accumulate_cov_shared'])
+            # in_hidden_data = baseInHidden.generate_hidden_data(192)
+            # in_hidden_dataset = BaseDataset(in_hidden_data)  
                 
-            self.train_mlp(
-                model=model,
-                train_dataset=in_hidden_dataset,
-                data_collator=float_data_collator,
-                training_mlp2=False
-            ) 
+            # self.train_mlp(
+            #     model=model,
+            #     train_dataset=in_hidden_dataset,
+            #     data_collator=float_data_collator,
+            #     training_mlp2=False
+            # ) 
             
             
             os.makedirs(f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}", exist_ok=True)
-            model.save_classifier(
+            # model.save_classifier(
+            #     idx=self.task_idx,
+            #     save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
+            # )
+
+            # model.feature_extractor.save_and_load_all_adapters(
+            #     self.task_idx,
+            #     save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
+            #     save=True,
+            # )
+            
+            model.load_classifier(
                 idx=self.task_idx,
                 save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
             )
-
+            
             model.feature_extractor.save_and_load_all_adapters(
                 self.task_idx,
                 save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
-                save=True,
+                save=False,
             )
+            
+            
             cur_test_data = data.filter(cur_labels, 'test')
             history_test_data = data.filter(seen_labels, 'test')
 
@@ -164,6 +181,15 @@ class EoETrainer(BaseTrainer):
                 data_collator=default_data_collator,
                 seen_labels=seen_labels,
                 label2task_id=copy.deepcopy(data.label2task_id), 
+                oracle=True,
+            )
+            
+            total_acc, total_hit = self.eval(
+                model=model,
+                eval_dataset=history_test_dataset,
+                data_collator=default_data_collator,
+                seen_labels=seen_labels,
+                label2task_id=copy.deepcopy(data.label2task_id),
                 oracle=True,
             )
 

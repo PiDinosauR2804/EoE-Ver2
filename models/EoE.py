@@ -383,7 +383,13 @@ class EoE(nn.Module):
                 **kwargs
             )
 
-            logits = self.classifier_only_bert[-1](hidden_states)
+            if oracle:
+                task_idx = kwargs["task_idx"]
+                classifier_only_bert = self.classifier_only_bert[task_idx]
+            else:
+                classifier_only_bert = self.classifier_only_bert[-1]
+
+            logits = classifier_only_bert(hidden_states)
             # print("--------classifier_only_bert-----")
             # print(logits)
             pred = logits.argmax(dim=1)
@@ -410,8 +416,12 @@ class EoE(nn.Module):
                 indices=indices_task_id,
                 **kwargs
             )
-            
-            classifier = self.classifier[-1]
+            if oracle:
+                task_idx = kwargs["task_idx"]
+                classifier = self.classifier[task_idx]
+            else:
+                classifier = self.classifier[-1]
+                
             logits = classifier(hidden_states_final)
             
             # Lấy dự đoán cuối cùng
