@@ -32,7 +32,14 @@ class ExpertModel(nn.Module):
         # if config.task_name == "RelationExtraction":
         #     self.classifier_hidden_size = 2 * self.feature_extractor.bert.config.hidden_size
 
-        self.classifier = nn.Linear(self.classifier_hidden_size, self.num_labels)
+        # self.classifier = nn.Linear(self.classifier_hidden_size, self.num_labels)
+        self.classifier = nn.Sequential( 
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.num_labels),
+        ).to(self.device)
 
     @torch.no_grad()
     def new_task(self, num_labels):
