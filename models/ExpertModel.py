@@ -39,17 +39,29 @@ class ExpertModel(nn.Module):
             nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
             nn.ReLU(inplace=True),
             nn.Linear(self.classifier_hidden_size, self.num_labels),
-        ).to(self.device)
+        )
 
+    # @torch.no_grad()
+    # def new_task(self, num_labels):
+    #     self.num_old_labels = self.num_labels
+    #     self.num_labels += num_labels
+    #     w = self.classifier.weight.data.clone()
+    #     b = self.classifier.bias.data.clone()
+    #     self.classifier = nn.Linear(self.classifier_hidden_size, self.num_labels, device=self.device)
+    #     self.classifier.weight.data[:self.num_old_labels] = w
+    #     self.classifier.bias.data[:self.num_old_labels] = b
+    
     @torch.no_grad()
     def new_task(self, num_labels):
         self.num_old_labels = self.num_labels
         self.num_labels += num_labels
-        w = self.classifier.weight.data.clone()
-        b = self.classifier.bias.data.clone()
-        self.classifier = nn.Linear(self.classifier_hidden_size, self.num_labels, device=self.device)
-        self.classifier.weight.data[:self.num_old_labels] = w
-        self.classifier.bias.data[:self.num_old_labels] = b
+        self.classifier = nn.Sequential( 
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.num_labels),
+        ).to(self.device)
 
     def forward(self, input_ids, attention_mask=None, labels=None, **kwargs):
         hidden_states = self.feature_extractor(

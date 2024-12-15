@@ -209,9 +209,7 @@ class EoE(nn.Module):
     def load_expert_model(self, expert_model):
         ckpt = torch.load(expert_model)
         self.feature_extractor.bert.load_state_dict(ckpt["model"])
-        num_class = self.classifier[0].weight.shape[0]
-        self.classifier[0].weight.data = ckpt["linear"]["weight"].data[:num_class].clone()
-        self.classifier[0].bias.data = ckpt["linear"]["bias"].data[:num_class].clone()
+        self.classifier[0].load_state_dict(ckpt["linear"])
 
     def new_task(self, num_labels):
         self.num_tasks += 1

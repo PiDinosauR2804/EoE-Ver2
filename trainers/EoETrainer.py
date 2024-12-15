@@ -85,15 +85,15 @@ class EoETrainer(BaseTrainer):
             seen_labels += cur_labels
             
             pool = model.get_description_ids(seen_labels)       
-            model.description_matrix = self.calculation_description_matrix(model, seen_labels, pool, model.number_description, default_data_collator)
-            print(model.description_matrix)
+            # model.description_matrix = self.calculation_description_matrix(model, seen_labels, pool, model.number_description, default_data_collator)
+            # print(model.description_matrix)
             
             model.new_task(num_train_labels)
             # print("2")
             # print(tokenizer.vocab_size)
             if self.task_idx == 0:
-                # expert_model = f"./ckpt/{self.args.dataset_name}_{seed}_{self.args.augment_type}.pth"
-                expert_model = f"/content/drive/MyDrive/FewRel_2021_all.pth"
+                expert_model = f"./ckpt/{self.args.dataset_name}_{seed}_{self.args.augment_type}.pth"
+                # expert_model = f"/content/drive/MyDrive/FewRel_2021_all.pth"
                 model.load_expert_model(expert_model)
                 logger.info(f"load first task model from {expert_model}")
             else:
