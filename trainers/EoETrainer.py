@@ -157,17 +157,6 @@ class EoETrainer(BaseTrainer):
                 save=True,
             )
             
-            # model.load_classifier(
-            #     idx=self.task_idx,
-            #     save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
-            # )
-            
-            # model.feature_extractor.save_and_load_all_adapters(
-            #     self.task_idx,
-            #     save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
-            #     save=False,
-            # )
-            
             
             cur_test_data = data.filter(cur_labels, 'test')
             history_test_data = data.filter(seen_labels, 'test')

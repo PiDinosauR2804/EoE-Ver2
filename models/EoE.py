@@ -370,7 +370,6 @@ class EoE(nn.Module):
                         input_ids=input_ids,
                         attention_mask=(input_ids!=0),
                         indices=indices,
-                        use_origin=True,
                         **kwargs
                     )
                 # if "extract_mode" in kwargs:
@@ -387,7 +386,6 @@ class EoE(nn.Module):
                     attention_mask=(input_ids!=0),
                     indices=indices,
                     extract_mode="cls",
-                    use_origin=True,
                     **kwargs
                 )
                 return hidden_states
@@ -396,7 +394,6 @@ class EoE(nn.Module):
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 indices=None,
-                use_origin=True,
                 **kwargs
             )
 
