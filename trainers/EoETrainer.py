@@ -113,7 +113,7 @@ class EoETrainer(BaseTrainer):
             
             
             baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['class_cov'])
-            un_hidden_data = baseUnHidden.generate_hidden_data(96)
+            un_hidden_data = baseUnHidden.generate_hidden_data(960)
             un_hidden_dataset = BaseDataset(un_hidden_data)  
                 
             self.train_mlp(
@@ -134,7 +134,7 @@ class EoETrainer(BaseTrainer):
             
             
             baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['class_cov'])
-            in_hidden_data = baseInHidden.generate_hidden_data(192)
+            in_hidden_data = baseInHidden.generate_hidden_data(960)
             in_hidden_dataset = BaseDataset(in_hidden_data)  
                 
             self.train_mlp(
