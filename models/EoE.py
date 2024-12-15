@@ -67,6 +67,7 @@ class EoE(nn.Module):
                 "class_mean": [],
                 "accumulate_cov": torch.zeros(self.query_size, self.query_size),
                 "accumulate_cov_shared": torch.ones(self.query_size, self.query_size),
+                "class_cov": [],
                 "cov_inv": torch.ones(self.query_size, self.query_size),
             }
         
@@ -74,6 +75,7 @@ class EoE(nn.Module):
                 "class_mean": [],
                 "accumulate_cov": torch.zeros(self.query_size, self.query_size),
                 "accumulate_cov_shared": torch.ones(self.query_size, self.query_size),
+                "class_cov": [],
                 "cov_inv": torch.ones(self.query_size, self.query_size),
             }
         
@@ -81,8 +83,11 @@ class EoE(nn.Module):
         self.label_description_ids = {}
         self.number_description = 3
         self.description_matrix = None
-        self.classifier = nn.ParameterList()
-        self.classifier_only_bert = nn.ParameterList()
+        # self.classifier = nn.ParameterList()        
+        # self.classifier_only_bert = nn.ParameterList()
+        
+        self.classifier = nn.ModuleList()        
+        self.classifier_only_bert = nn.ModuleList()
         
         self.triplet_loss_fn = nn.TripletMarginLoss(margin=1.0, p=2)
 
@@ -221,10 +226,22 @@ class EoE(nn.Module):
             param.requires_grad = False
             
         new_output_size = self.num_old_labels + num_labels
-        new_classifier = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
+        new_classifier = nn.Sequential( 
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, new_output_size),
+        ).to(self.device)
         # new_classifier = nn.Linear(self.classifier_hidden_size, num_labels, device=self.device)
         
-        new_classifier_only_bert = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
+        new_classifier_only_bert = nn.Sequential( 
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, new_output_size),
+        ).to(self.device)
         
         if self.num_tasks > 0:
             with torch.no_grad():
@@ -270,9 +287,10 @@ class EoE(nn.Module):
             length = self.num_tasks - expert_id + 2
         
         self.un_expert_distribution["class_mean"].extend(mean.cuda())
-        self.un_expert_distribution["accumulate_cov"] += cov
+        self.un_expert_distribution["accumulate_cov"] += cov.mean(dim=0)
         avg_cov = self.un_expert_distribution["accumulate_cov"].cuda() / length
         self.un_expert_distribution["accumulate_cov_shared"] = avg_cov
+        self.un_expert_distribution["class_cov"].extend(cov.cuda())
         # self.un_expert_distribution["cov_inv"] = torch.linalg.pinv(avg_cov, hermitian=True)
         
     def new_statistic_instructed_representation(self, mean, cov, task_mean, task_cov, expert_id=0):
@@ -283,9 +301,10 @@ class EoE(nn.Module):
             length = self.num_tasks - expert_id + 2
         
         self.in_expert_distribution["class_mean"].extend(mean.cuda())
-        self.in_expert_distribution["accumulate_cov"] += cov
+        self.in_expert_distribution["accumulate_cov"] += cov.mean(dim=0)
         avg_cov = self.in_expert_distribution["accumulate_cov"].cuda() / length
         self.in_expert_distribution["accumulate_cov_shared"] = avg_cov
+        self.in_expert_distribution["class_cov"].extend(cov.cuda())
         # self.in_expert_distribution["cov_inv"] = torch.linalg.pinv(avg_cov, hermitian=True)
         
     def shift_expert_id(self, expert_id):

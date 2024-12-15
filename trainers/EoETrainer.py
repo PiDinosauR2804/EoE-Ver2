@@ -92,16 +92,16 @@ class EoETrainer(BaseTrainer):
             # print("2")
             # print(tokenizer.vocab_size)
             if self.task_idx == 0:
-                expert_model = f"./ckpt/{self.args.dataset_name}_{seed}_{self.args.augment_type}.pth"
-                # expert_model = f"/content/drive/MyDrive/FewRel_2021_all.pth"
+                # expert_model = f"./ckpt/{self.args.dataset_name}_{seed}_{self.args.augment_type}.pth"
+                expert_model = f"/content/drive/MyDrive/FewRel_2021_all.pth"
                 model.load_expert_model(expert_model)
                 logger.info(f"load first task model from {expert_model}")
-            # else:
-            #     self.train(
-            #         model=model,
-            #         train_dataset=train_dataset,
-            #         data_collator=default_data_collator
-            #     )
+            else:
+                self.train(
+                    model=model,
+                    train_dataset=train_dataset,
+                    data_collator=default_data_collator
+                )
                 
             self.statistic(model, train_dataset_old, default_data_collator)
             
@@ -112,16 +112,16 @@ class EoETrainer(BaseTrainer):
             # print(model.un_expert_distribution['accumulate_cov_shared'])
             
             
-            # baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['accumulate_cov_shared'])
-            # un_hidden_data = baseUnHidden.generate_hidden_data(96)
-            # un_hidden_dataset = BaseDataset(un_hidden_data)  
+            baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['class_cov'])
+            un_hidden_data = baseUnHidden.generate_hidden_data(96)
+            un_hidden_dataset = BaseDataset(un_hidden_data)  
                 
-            # self.train_mlp(
-            #     model=model,
-            #     train_dataset=un_hidden_dataset,
-            #     data_collator=float_data_collator,
-            #     training_mlp2=True
-            # )      
+            self.train_mlp(
+                model=model,
+                train_dataset=un_hidden_dataset,
+                data_collator=float_data_collator,
+                training_mlp2=True
+            )      
 
             # print(model.classifier[-1].weight)
             # print("----------------------instructed representation----------------------")
@@ -133,40 +133,40 @@ class EoETrainer(BaseTrainer):
             # print(model.un_expert_distribution['accumulate_cov_shared'])
             
             
-            # baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['accumulate_cov_shared'])
-            # in_hidden_data = baseInHidden.generate_hidden_data(192)
-            # in_hidden_dataset = BaseDataset(in_hidden_data)  
+            baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['class_cov'])
+            in_hidden_data = baseInHidden.generate_hidden_data(192)
+            in_hidden_dataset = BaseDataset(in_hidden_data)  
                 
-            # self.train_mlp(
-            #     model=model,
-            #     train_dataset=in_hidden_dataset,
-            #     data_collator=float_data_collator,
-            #     training_mlp2=False
-            # ) 
+            self.train_mlp(
+                model=model,
+                train_dataset=in_hidden_dataset,
+                data_collator=float_data_collator,
+                training_mlp2=False
+            ) 
             
             
             os.makedirs(f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}", exist_ok=True)
-            # model.save_classifier(
-            #     idx=self.task_idx,
-            #     save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
-            # )
-
-            # model.feature_extractor.save_and_load_all_adapters(
-            #     self.task_idx,
-            #     save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
-            #     save=True,
-            # )
-            
-            model.load_classifier(
+            model.save_classifier(
                 idx=self.task_idx,
                 save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
             )
-            
+
             model.feature_extractor.save_and_load_all_adapters(
                 self.task_idx,
                 save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
-                save=False,
+                save=True,
             )
+            
+            # model.load_classifier(
+            #     idx=self.task_idx,
+            #     save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
+            # )
+            
+            # model.feature_extractor.save_and_load_all_adapters(
+            #     self.task_idx,
+            #     save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
+            #     save=False,
+            # )
             
             
             cur_test_data = data.filter(cur_labels, 'test')
@@ -401,7 +401,6 @@ class EoETrainer(BaseTrainer):
         
         return torch.tensor(rescaled_matrix)
       
-
     @torch.no_grad()
     def eval(self, model, eval_dataset, data_collator, seen_labels, label2task_id, oracle=False):
         eval_dataloader = DataLoader(
@@ -530,6 +529,7 @@ class EoETrainer(BaseTrainer):
             cov_over_classes.append(cov)
 
         mean_over_classes = torch.stack(mean_over_classes)
-        shared_cov = torch.stack(cov_over_classes).mean(dim=0)
+        # shared_cov = torch.stack(cov_over_classes).mean(dim=0)
+        shared_cov = torch.stack(cov_over_classes)
 
         return mean_over_classes, shared_cov, task_mean, task_cov
