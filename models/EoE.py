@@ -570,11 +570,11 @@ class EoE(nn.Module):
                 # contrastive regularization Loss
                 # Compute numerator: exp(h · μ_c / τ)
                 
-                # stack_u_c = []
-                # for label in old_offset_label:
-                #     stack_u_c.append(self.description_matrix[label])
-                # stack_u_c = torch.stack(stack_u_c)
-                # stack_u_c = torch.tensor(stack_u_c, device=self.device)
+                stack_u_c = []
+                for label in old_offset_label:
+                    stack_u_c.append(self.in_expert_distribution[label])
+                stack_u_c = torch.stack(stack_u_c)
+                stack_u_c = torch.tensor(stack_u_c, device=self.device)
                 
                 numerator_list = []
                 denominator_list = []
@@ -588,7 +588,7 @@ class EoE(nn.Module):
                 # Compute denominator: sum(exp(h · h' / τ)) + sum(exp(h · μ_c / τ))
     
                 
-                # denominator_list.append(torch.exp((old_description_hidden_states * stack_u_c).sum(dim=1, keepdim=True) / self.tau))
+                denominator_list.append(torch.exp((old_description_hidden_states * stack_u_c).sum(dim=1, keepdim=True) / self.tau))
                 # denominator_list.extend(numerator_list)  # Add numerator terms for μ_c
                 denominator = torch.sum(torch.stack(denominator_list), dim=0)
 
