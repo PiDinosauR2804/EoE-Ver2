@@ -272,7 +272,7 @@ class BaseData:
                     'object_marker_st': anchor['object_marker_st'],
                     'labels': anchor['labels'],
                     'input_ids_without_marker': anchor['input_ids_without_marker'],
-                    'mask_marker': anchor['mask_marker'],
+                    # 'mask_marker': anchor['mask_marker'],
                     'subject_st': anchor['subject_st'],
                     'subject_ed': anchor['subject_ed'],
                     'object_st': anchor['object_st'],
