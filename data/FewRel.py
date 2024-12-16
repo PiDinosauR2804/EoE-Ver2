@@ -139,9 +139,9 @@ class FewRelData(BaseData):
                     test_raw_data["sentence"].append(sample["tokens"])
                     test_raw_data["labels"].append(sample["relation"])
 
-            train_data[label] = self.preprocess_mask(train_raw_data, tokenizer)
-            val_data[label] = self.preprocess_mask(val_raw_data, tokenizer)
-            test_data[label] = self.preprocess_mask(test_raw_data, tokenizer)
+            train_data[label] = self.preprocess(train_raw_data, tokenizer)
+            val_data[label] = self.preprocess(val_raw_data, tokenizer)
+            test_data[label] = self.preprocess(test_raw_data, tokenizer)
 
         self.train_data = train_data
         self.val_data = val_data

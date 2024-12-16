@@ -45,9 +45,9 @@ class EoE(nn.Module):
 
         self.classifier_hidden_size = self.feature_extractor.bert.config.hidden_size
         self.query_size = self.feature_extractor.bert.config.hidden_size
-        # if config.task_name == "RelationExtraction":
-        #     self.classifier_hidden_size = 2 * self.feature_extractor.bert.config.hidden_size
-        #     self.query_size = 2 * self.feature_extractor.bert.config.hidden_size
+        if config.task_name == "RelationExtraction":
+            self.classifier_hidden_size = 2 * self.feature_extractor.bert.config.hidden_size
+            self.query_size = 2 * self.feature_extractor.bert.config.hidden_size
 
         self.dropout = nn.Dropout(self.feature_extractor.bert.config.hidden_dropout_prob)
         self.n_layer = self.feature_extractor.bert.config.num_hidden_layers

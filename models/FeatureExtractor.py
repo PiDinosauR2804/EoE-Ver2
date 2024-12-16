@@ -43,8 +43,8 @@ class PeftFeatureExtractor(nn.Module):
         
 
         if config.task_name == "RelationExtraction":
-            self.extract_mode = "mask_entity"
-            # self.extract_mode = "entity_marker"
+            # self.extract_mode = "mask_entity"
+            self.extract_mode = "entity_marker"
         elif config.task_name == "RelationExtractionMask":
             self.extract_mode = "mask_entity"
         else:
@@ -190,7 +190,7 @@ class PeftFeatureExtractor(nn.Module):
         if extract_mode == "cls":
             # print("8")
             hidden_states = outputs[1]  # (batch, dim)
-            # hidden_states = self.output_layer(hidden_states)
+            hidden_states = self.output_layer(hidden_states)
             hidden_states = nn.functional.normalize(hidden_states, p=2, dim=-1)
         elif extract_mode == "mean_pooling":
             # print("9")

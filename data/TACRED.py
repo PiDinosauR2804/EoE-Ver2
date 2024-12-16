@@ -152,8 +152,8 @@ class TACREDData(BaseData):
                         break
             cnt += test_count
 
-            train_data[label] = self.preprocess_mask(train_raw_data, tokenizer)
-            test_data[label] = self.preprocess_mask(test_raw_data, tokenizer)
+            train_data[label] = self.preprocess(train_raw_data, tokenizer)
+            test_data[label] = self.preprocess(test_raw_data, tokenizer)
 
         self.train_data = train_data
         self.val_data = val_data
