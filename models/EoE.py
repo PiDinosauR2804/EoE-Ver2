@@ -589,7 +589,7 @@ class EoE(nn.Module):
     
                 
                 # denominator_list.append(torch.exp((old_description_hidden_states * stack_u_c).sum(dim=1, keepdim=True) / self.tau))
-                denominator_list.extend(numerator_list)  # Add numerator terms for μ_c
+                # denominator_list.extend(numerator_list)  # Add numerator terms for μ_c
                 denominator = torch.sum(torch.stack(denominator_list), dim=0)
 
                 # Compute log term
