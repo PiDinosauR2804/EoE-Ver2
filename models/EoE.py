@@ -404,14 +404,14 @@ class EoE(nn.Module):
                 classifier_only_bert = self.classifier_only_bert[-1]
 
             logits = classifier_only_bert(hidden_states)
-            # print("--------classifier_only_bert-----")
+            print("--------classifier_only_bert-----")
             # print(logits)
             pred = logits.argmax(dim=1)
             indices = pred.to(self.device)
-            # print("Ground truth Task")
-            # print(labels)
-            # print("Predict Task Task")
-            # print(indices)
+            print("Ground truth Task")
+            print(labels)
+            print("Predict Task Task")
+            print(indices)
             
             
             if oracle:
@@ -421,8 +421,8 @@ class EoE(nn.Module):
                 indices_task_id = indices // self.class_per_task
                 indices_task_id = torch.tensor(indices_task_id, dtype=torch.long, device=self.device)
                 
-            # print("Predict Task indices")
-            # print(indices_task_id) 
+            print("Predict Task indices")
+            print(indices_task_id) 
                 
             hidden_states_final = self.feature_extractor(
                 input_ids=input_ids,
@@ -440,10 +440,10 @@ class EoE(nn.Module):
             
             # Lấy dự đoán cuối cùng
             preds = logits.argmax(dim=-1)
-            # print("Grouth Truth Class")
-            # print(labels)
-            # print("Predict Label")
-            # print(preds)
+            print("Grouth Truth Class")
+            print(labels)
+            print("Predict Label")
+            print(preds)
             
             preds = preds.cpu().numpy()
             indices_task_id = indices_task_id.cpu().numpy()
@@ -572,7 +572,7 @@ class EoE(nn.Module):
                 
                 stack_u_c = []
                 for label in old_offset_label:
-                    stack_u_c.append(self.in_expert_distribution[label])
+                    stack_u_c.append(self.in_expert_distribution["class_mean"][label])
                 stack_u_c = torch.stack(stack_u_c)
                 stack_u_c = torch.tensor(stack_u_c, device=self.device)
                 
