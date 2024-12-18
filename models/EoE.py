@@ -83,11 +83,11 @@ class EoE(nn.Module):
         self.label_description_ids = {}
         self.number_description = 3
         self.description_matrix = None
-        self.classifier = nn.ParameterList()        
-        self.classifier_only_bert = nn.ParameterList()
+        # self.classifier = nn.ParameterList()        
+        # self.classifier_only_bert = nn.ParameterList()
         
-        # self.classifier = nn.ModuleList()        
-        # self.classifier_only_bert = nn.ModuleList()
+        self.classifier = nn.ModuleList()        
+        self.classifier_only_bert = nn.ModuleList()
     
     def generate_description_genai(self, label, dataset_name, tokenizer):
         if dataset_name.lower() == 'fewrel':
@@ -223,24 +223,24 @@ class EoE(nn.Module):
             
         new_output_size = self.num_old_labels + num_labels
         
-        new_classifier = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
-        new_classifier_only_bert = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
+        # new_classifier = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
+        # new_classifier_only_bert = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
         
-        # new_classifier = nn.Sequential( 
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, new_output_size),
-        # ).to(self.device)
+        new_classifier = nn.Sequential( 
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, new_output_size),
+        ).to(self.device)
         
-        # new_classifier_only_bert = nn.Sequential( 
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, new_output_size),
-        # ).to(self.device)
+        new_classifier_only_bert = nn.Sequential( 
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, new_output_size),
+        ).to(self.device)
         
         # if self.num_tasks > 0:
         #     with torch.no_grad():
@@ -525,18 +525,18 @@ class EoE(nn.Module):
                     **kwargs
                 )
                 
-                stack_u_c = []
-                for label in offset_label:
-                    stack_u_c.append(self.description_matrix[label])
-                stack_u_c = torch.stack(stack_u_c)
-                stack_u_c = torch.tensor(stack_u_c, device=self.device)
+                # stack_u_c = []
+                # for label in offset_label:
+                #     stack_u_c.append(self.description_matrix[label])
+                # stack_u_c = torch.stack(stack_u_c)
+                # stack_u_c = torch.tensor(stack_u_c, device=self.device)
                 
                 numerator_list = []
                 denominator_list = [] 
                 for idx, class_mean in enumerate(self.in_expert_distribution["class_mean"]):
                     denominator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
-                    # numerator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
-                    numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    numerator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    # numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
 
                                 
                 denominator_list.append(torch.exp((anchor_hidden_states * description_hidden_states).sum(dim=1, keepdim=True) / self.tau))
@@ -567,22 +567,22 @@ class EoE(nn.Module):
                 old_offset_label = kwargs['old_labels']
 
                 
-                stack_u_c = []
+                stack_u_c_1 = []
                 for label in old_offset_label:
-                    stack_u_c.append(self.in_expert_distribution["class_mean"][label])
-                stack_u_c = torch.stack(stack_u_c)
-                stack_u_c = torch.tensor(stack_u_c, device=self.device)
+                    stack_u_c_1.append(self.in_expert_distribution["class_mean"][label])
+                stack_u_c_1 = torch.stack(stack_u_c_1)
+                stack_u_c_1 = torch.tensor(stack_u_c_1, device=self.device)
                 
                 numerator_list = []
                 denominator_list = []
                 for idx, class_mean in enumerate(self.in_expert_distribution["class_mean"]):
                     denominator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
-                    # numerator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
-                    numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    numerator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    # numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
                 
     
                 
-                denominator_list.append(torch.exp((old_description_hidden_states * stack_u_c).sum(dim=1, keepdim=True) / self.tau))
+                denominator_list.append(torch.exp((old_description_hidden_states * stack_u_c_1).sum(dim=1, keepdim=True) / self.tau))
                 denominator = torch.sum(torch.stack(denominator_list), dim=0)
 
                 log_term = torch.zeros(batch_size, 1, device=self.device)
