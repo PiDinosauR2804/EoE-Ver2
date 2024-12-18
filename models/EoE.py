@@ -36,7 +36,7 @@ class EoE(nn.Module):
         
         self.weight_ce_wtp = 1
         self.weight_cr_wtp = 1
-        self.weight_old_cr_wtp = 0
+        self.weight_old_cr_wtp = 1
         
         self.num_old_labels = 0
         self.num_labels = 0
@@ -83,8 +83,9 @@ class EoE(nn.Module):
         self.label_description_ids = {}
         self.number_description = 3
         self.description_matrix = None
-        self.classifier = nn.ParameterList()        
-        self.classifier_only_bert = nn.ParameterList()
+        
+        # self.classifier = nn.ParameterList()        
+        # self.classifier_only_bert = nn.ParameterList()
         
         # self.classifier = nn.ModuleList()        
         # self.classifier_only_bert = nn.ModuleList()
@@ -223,24 +224,24 @@ class EoE(nn.Module):
             
         new_output_size = self.num_old_labels + num_labels
         
-        new_classifier = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
-        new_classifier_only_bert = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
+        # new_classifier = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
+        # new_classifier_only_bert = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
         
-        # new_classifier = nn.Sequential( 
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, new_output_size),
-        # ).to(self.device)
+        new_classifier = nn.Sequential( 
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, new_output_size),
+        ).to(self.device)
         
-        # new_classifier_only_bert = nn.Sequential( 
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, new_output_size),
-        # ).to(self.device)
+        new_classifier_only_bert = nn.Sequential( 
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, new_output_size),
+        ).to(self.device)
         
         # if self.num_tasks > 0:
         #     with torch.no_grad():
@@ -513,92 +514,92 @@ class EoE(nn.Module):
             anchor_hidden_states = hidden_states
             # print("1")
             
-            # description_ids_list = {k: v for k, v in kwargs.items() if k.startswith('description_ids_')}
-            # total_log_term = torch.zeros(1, device=self.device)
-            # for k, v in description_ids_list.items():
-            #     # print("2")
-            #     description_hidden_states = self.feature_extractor(
-            #         input_ids=v,
-            #         attention_mask=(v != 0),
-            #         indices=indices,
-            #         extract_mode="cls",
-            #         **kwargs
-            #     )
+            description_ids_list = {k: v for k, v in kwargs.items() if k.startswith('description_ids_')}
+            total_log_term = torch.zeros(1, device=self.device)
+            for k, v in description_ids_list.items():
+                # print("2")
+                description_hidden_states = self.feature_extractor(
+                    input_ids=v,
+                    attention_mask=(v != 0),
+                    indices=indices,
+                    extract_mode="cls",
+                    **kwargs
+                )
                 
-            #     # stack_u_c = []
-            #     # for label in offset_label:
-            #     #     stack_u_c.append(self.description_matrix[label])
-            #     # stack_u_c = torch.stack(stack_u_c)
-            #     # stack_u_c = torch.tensor(stack_u_c, device=self.device)
+                # stack_u_c = []
+                # for label in offset_label:
+                #     stack_u_c.append(self.description_matrix[label])
+                # stack_u_c = torch.stack(stack_u_c)
+                # stack_u_c = torch.tensor(stack_u_c, device=self.device)
                 
-            #     numerator_list = []
-            #     denominator_list = [] 
-            #     for idx, class_mean in enumerate(self.in_expert_distribution["class_mean"]):
-            #         denominator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
-            #         numerator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
-            #         # numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                numerator_list = []
+                denominator_list = [] 
+                for idx, class_mean in enumerate(self.in_expert_distribution["class_mean"]):
+                    denominator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    numerator_list.append(torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    # numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(anchor_hidden_states, class_mean.unsqueeze(1)) / self.tau))
 
                                 
-            #     denominator_list.append(torch.exp((anchor_hidden_states * description_hidden_states).sum(dim=1, keepdim=True) / self.tau))
-            #     denominator = torch.sum(torch.stack(denominator_list), dim=0)
-            #     # Compute log term
-            #     log_term = torch.zeros(batch_size, 1, device=self.device)
-            #     for numerator in numerator_list:
-            #         log_term += torch.log(numerator / denominator)
+                denominator_list.append(torch.exp((anchor_hidden_states * description_hidden_states).sum(dim=1, keepdim=True) / self.tau))
+                denominator = torch.sum(torch.stack(denominator_list), dim=0)
+                # Compute log term
+                log_term = torch.zeros(batch_size, 1, device=self.device)
+                for numerator in numerator_list:
+                    log_term += torch.log(numerator / denominator)
 
-            #     total_log_term += (log_term.mean() / self.num_old_labels)
-            # print("----CR Loss-------")
-            # print((total_log_term / len(description_ids_list)).item())
-            # loss += self.weight_cr_wtp *  (total_log_term / len(description_ids_list)).squeeze(0)
+                total_log_term += (log_term.mean() / self.num_old_labels)
+            print("----CR Loss-------")
+            print((total_log_term / len(description_ids_list)).item())
+            loss += self.weight_cr_wtp *  (total_log_term / len(description_ids_list)).squeeze(0)
         
         
             
-            # old_description_ids_list = {k: v for k, v in kwargs.items() if k.startswith('old_description_ids_')}
-            # total_old_log_term = torch.zeros(1, device=self.device)
-            # for k, v in old_description_ids_list.items():
-            #     # print("2")
-            #     old_description_hidden_states = self.feature_extractor(
-            #         input_ids=v,
-            #         attention_mask=(v != 0),
-            #         indices=indices,
-            #         extract_mode="cls",
-            #         **kwargs
-            #     )
-            #     old_offset_label = kwargs['old_labels']
+            old_description_ids_list = {k: v for k, v in kwargs.items() if k.startswith('old_description_ids_')}
+            total_old_log_term = torch.zeros(1, device=self.device)
+            for k, v in old_description_ids_list.items():
+                # print("2")
+                old_description_hidden_states = self.feature_extractor(
+                    input_ids=v,
+                    attention_mask=(v != 0),
+                    indices=indices,
+                    extract_mode="cls",
+                    **kwargs
+                )
+                old_offset_label = kwargs['old_labels']
 
                 
-            #     stack_u_c_1 = []
-            #     for label in old_offset_label:
-            #         stack_u_c_1.append(self.in_expert_distribution["class_mean"][label])
-            #     stack_u_c_1 = torch.stack(stack_u_c_1)
-            #     stack_u_c_1 = torch.tensor(stack_u_c_1, device=self.device)
+                stack_u_c_1 = []
+                for label in old_offset_label:
+                    stack_u_c_1.append(self.in_expert_distribution["class_mean"][label])
+                stack_u_c_1 = torch.stack(stack_u_c_1)
+                stack_u_c_1 = torch.tensor(stack_u_c_1, device=self.device)
                 
-            #     numerator_list = []
-            #     denominator_list = []
-            #     for idx, class_mean in enumerate(self.in_expert_distribution["class_mean"]):
-            #         denominator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
-            #         numerator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
-            #         # numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                numerator_list = []
+                denominator_list = []
+                for idx, class_mean in enumerate(self.in_expert_distribution["class_mean"]):
+                    denominator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    numerator_list.append(torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
+                    # numerator_list.append(stack_u_c[:,idx].unsqueeze(-1) * torch.exp(torch.matmul(old_description_hidden_states, class_mean.unsqueeze(1)) / self.tau))
                 
     
                 
-            #     denominator_list.append(torch.exp((old_description_hidden_states * stack_u_c_1).sum(dim=1, keepdim=True) / self.tau))
-            #     denominator = torch.sum(torch.stack(denominator_list), dim=0)
+                denominator_list.append(torch.exp((old_description_hidden_states * stack_u_c_1).sum(dim=1, keepdim=True) / self.tau))
+                denominator = torch.sum(torch.stack(denominator_list), dim=0)
 
-            #     log_term = torch.zeros(batch_size, 1, device=self.device)
-            #     for numerator in numerator_list:
-            #         log_term += torch.log(numerator / denominator)
+                log_term = torch.zeros(batch_size, 1, device=self.device)
+                for numerator in numerator_list:
+                    log_term += torch.log(numerator / denominator)
 
-            #     total_old_log_term += (log_term.mean() / self.num_old_labels)
+                total_old_log_term += (log_term.mean() / self.num_old_labels)
             
-            # loss += self.weight_old_cr_wtp * (total_old_log_term / len(old_description_ids_list)).squeeze(0)
+            loss += self.weight_old_cr_wtp * (total_old_log_term / len(old_description_ids_list)).squeeze(0)
             # print("----Old CR Loss-------")
             # print((total_old_log_term / len(old_description_ids_list)).item())
                         
         # print("-------------Final---------")
         # print(loss)
-        # loggerdb.log_metrics({f"train/old_cr_loss_{self.num_tasks}": (total_old_log_term / len(old_description_ids_list)).item()})
-        # loggerdb.log_metrics({f"train/cr_loss_{self.num_tasks}": (total_log_term / len(description_ids_list)).item()})
+        loggerdb.log_metrics({f"train/old_cr_loss_{self.num_tasks}": (total_old_log_term / len(old_description_ids_list)).item()})
+        loggerdb.log_metrics({f"train/cr_loss_{self.num_tasks}": (total_log_term / len(description_ids_list)).item()})
         loggerdb.log_metrics({f"train/total_loss_{self.num_tasks}": loss.item()})
             
         preds = logits.max(dim=-1)[1]
