@@ -34,9 +34,9 @@ class EoE(nn.Module):
         self.tau = 0.8
         self.feature_extractor = PeftFeatureExtractor(config)
         
-        self.weight_ce_wtp = 0.7
-        self.weight_cr_wtp = 0.15
-        self.weight_old_cr_wtp = 0.15
+        self.weight_ce_wtp = 1/3
+        self.weight_cr_wtp = 1/3
+        self.weight_old_cr_wtp = 1/3
         
         self.num_old_labels = 0
         self.num_labels = 0
@@ -601,8 +601,6 @@ class EoE(nn.Module):
         loggerdb.log_metrics({f"train/cr_loss_{self.num_tasks}": (total_log_term / len(description_ids_list)).item()})
         loggerdb.log_metrics({f"train/total_loss_{self.num_tasks}": loss.item()})
             
-        # logger.log_metrics({"train/loss": loss})
-
         preds = logits.max(dim=-1)[1]
                 
         indices = indices.tolist() if isinstance(indices, torch.Tensor) else indices
