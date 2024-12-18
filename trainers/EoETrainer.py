@@ -174,7 +174,7 @@ class EoETrainer(BaseTrainer):
                 oracle=True,
             )
             
-            total_acc, total_hit = self.eval(
+            total_acc_1, total_hit_1 = self.eval(
                 model=model,
                 eval_dataset=history_test_dataset,
                 data_collator=default_data_collator,
