@@ -32,7 +32,7 @@ class BaseHidden:
         for idx in range(self.num_class):
             labels = idx
             mean = self.means[idx].cpu().numpy()
-            cov = self.covariance[idx].cpu().numpy()
+            cov = self.covariance.cpu().numpy()
             samples = self.generate_data_base_on_means_and_cov(labels, mean, cov, num)
             res.extend(samples)
         return res

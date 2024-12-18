@@ -113,7 +113,7 @@ class EoETrainer(BaseTrainer):
             # print(model.un_expert_distribution['accumulate_cov_shared'])
             
             
-            baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['class_cov'])
+            baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['accumulate_cov_shared'])
             un_hidden_data = baseUnHidden.generate_hidden_data(480)
             un_hidden_dataset = BaseDataset(un_hidden_data)  
                 
@@ -134,7 +134,7 @@ class EoETrainer(BaseTrainer):
             # print(model.un_expert_distribution['accumulate_cov_shared'])
             
             
-            baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['class_cov'])
+            baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['accumulate_cov_shared'])
             in_hidden_data = baseInHidden.generate_hidden_data(480)
             in_hidden_dataset = BaseDataset(in_hidden_data)  
                 
