@@ -83,11 +83,11 @@ class EoE(nn.Module):
         self.label_description_ids = {}
         self.number_description = 3
         self.description_matrix = None
-        # self.classifier = nn.ParameterList()        
-        # self.classifier_only_bert = nn.ParameterList()
+        self.classifier = nn.ParameterList()        
+        self.classifier_only_bert = nn.ParameterList()
         
-        self.classifier = nn.ModuleList()        
-        self.classifier_only_bert = nn.ModuleList()
+        # self.classifier = nn.ModuleList()        
+        # self.classifier_only_bert = nn.ModuleList()
     
     def generate_description_genai(self, label, dataset_name, tokenizer):
         if dataset_name.lower() == 'fewrel':
@@ -223,24 +223,24 @@ class EoE(nn.Module):
             
         new_output_size = self.num_old_labels + num_labels
         
-        # new_classifier = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
-        # new_classifier_only_bert = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
+        new_classifier = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
+        new_classifier_only_bert = nn.Linear(self.classifier_hidden_size, new_output_size, device=self.device)
         
-        new_classifier = nn.Sequential( 
-            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-            nn.ReLU(inplace=True),
-            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-            nn.ReLU(inplace=True),
-            nn.Linear(self.classifier_hidden_size, new_output_size),
-        ).to(self.device)
+        # new_classifier = nn.Sequential( 
+        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+        #     nn.ReLU(inplace=True),
+        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+        #     nn.ReLU(inplace=True),
+        #     nn.Linear(self.classifier_hidden_size, new_output_size),
+        # ).to(self.device)
         
-        new_classifier_only_bert = nn.Sequential( 
-            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-            nn.ReLU(inplace=True),
-            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-            nn.ReLU(inplace=True),
-            nn.Linear(self.classifier_hidden_size, new_output_size),
-        ).to(self.device)
+        # new_classifier_only_bert = nn.Sequential( 
+        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+        #     nn.ReLU(inplace=True),
+        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+        #     nn.ReLU(inplace=True),
+        #     nn.Linear(self.classifier_hidden_size, new_output_size),
+        # ).to(self.device)
         
         # if self.num_tasks > 0:
         #     with torch.no_grad():
