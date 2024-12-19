@@ -438,14 +438,18 @@ class EoE(nn.Module):
                 classifier = self.classifier[task_idx]
                 logits = classifier(hidden_states_final)
             else:
-                classifier = self.classifier[indices_task_id]
+                # classifier = self.classifier[indices_task_id]
                 logits = []
                 for i, task_id in enumerate(indices_task_id):
                     classifier = self.classifier[task_id]  # Select the classifier corresponding to the task ID
                     logits.append(classifier(hidden_states_final[i]))  # Pass the corresponding hidden state through the classifier
 
                 # Combine logits into a single tensor
-                logits = torch.stack(logits)
+                max_len = max(logit.size(0) for logit in logits)
+
+                padded_logits = torch.stack([torch.cat([logit, torch.zeros(max_len - logit.size(0), device=device)]) for logit in logits])
+
+                logits = torch.stack(padded_logits)
                 
             
             # Lấy dự đoán cuối cùng
