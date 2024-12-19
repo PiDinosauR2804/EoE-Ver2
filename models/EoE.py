@@ -35,8 +35,8 @@ class EoE(nn.Module):
         self.feature_extractor = PeftFeatureExtractor(config)
         
         self.weight_ce_wtp = 1
-        self.weight_cr_wtp = 1
-        self.weight_old_cr_wtp = 1
+        self.weight_cr_wtp = 0.5
+        self.weight_old_cr_wtp = 0.5
         
         self.num_old_labels = 0
         self.num_labels = 0
@@ -447,9 +447,7 @@ class EoE(nn.Module):
                 # Combine logits into a single tensor
                 max_len = max(logit.size(0) for logit in logits)
 
-                padded_logits = torch.stack([torch.cat([logit, torch.zeros(max_len - logit.size(0), device=self.device)]) for logit in logits])
-
-                logits = torch.stack(padded_logits)
+                logits = torch.stack([torch.cat([logit, torch.zeros(max_len - logit.size(0), device=self.device)]) for logit in logits])
                 
             
             # Lấy dự đoán cuối cùng
