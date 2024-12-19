@@ -436,10 +436,17 @@ class EoE(nn.Module):
             if oracle:
                 task_idx = kwargs["task_idx"]
                 classifier = self.classifier[task_idx]
+                logits = classifier(hidden_states_final)
             else:
-                classifier = self.classifier[-1]
+                classifier = self.classifier[indices_task_id]
+                logits = []
+                for i, task_id in enumerate(indices_task_id):
+                    classifier = self.classifier[task_id]  # Select the classifier corresponding to the task ID
+                    logits.append(classifier(hidden_states_final[i]))  # Pass the corresponding hidden state through the classifier
+
+                # Combine logits into a single tensor
+                logits = torch.stack(logits)
                 
-            logits = classifier(hidden_states_final)
             
             # Lấy dự đoán cuối cùng
             preds = logits.argmax(dim=-1)
