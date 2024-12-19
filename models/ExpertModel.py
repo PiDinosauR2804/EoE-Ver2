@@ -32,14 +32,14 @@ class ExpertModel(nn.Module):
         if config.task_name == "RelationExtraction":
             self.classifier_hidden_size = 2 * self.feature_extractor.bert.config.hidden_size
 
-        self.classifier = nn.Linear(self.classifier_hidden_size, self.num_labels)
-        # self.classifier = nn.Sequential( 
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, self.num_labels),
-        # )
+        # self.classifier = nn.Linear(self.classifier_hidden_size, self.num_labels)
+        self.classifier = nn.Sequential( 
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.num_labels),
+        )
 
     # @torch.no_grad()
     # def new_task(self, num_labels):
@@ -56,14 +56,14 @@ class ExpertModel(nn.Module):
         self.num_old_labels = self.num_labels
         self.num_labels += num_labels
         
-        self.classifier = nn.Linear(self.classifier_hidden_size, self.num_labels).to(self.device)
-        # self.classifier = nn.Sequential( 
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
-        #     nn.ReLU(inplace=True),
-        #     nn.Linear(self.classifier_hidden_size, self.num_labels),
-        # ).to(self.device)
+        # self.classifier = nn.Linear(self.classifier_hidden_size, self.num_labels).to(self.device)
+        self.classifier = nn.Sequential( 
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.num_labels),
+        ).to(self.device)
 
     def forward(self, input_ids, attention_mask=None, labels=None, **kwargs):
         hidden_states = self.feature_extractor(
