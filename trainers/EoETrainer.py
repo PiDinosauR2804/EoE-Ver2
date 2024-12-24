@@ -137,7 +137,7 @@ class EoETrainer(BaseTrainer):
             baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['accumulate_cov_shared'])
             in_hidden_data = baseInHidden.generate_hidden_data(240)
             in_hidden_dataset = BaseDataset(in_hidden_data)  
-                
+            
             self.train_mlp(
                 model=model,
                 train_dataset=in_hidden_dataset,

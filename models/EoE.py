@@ -87,6 +87,8 @@ class EoE(nn.Module):
         # self.classifier = nn.ParameterList()        
         # self.classifier_only_bert = nn.ParameterList()
         
+        self.temp_classifier = None
+        
         self.classifier = nn.ModuleList()        
         self.classifier_only_bert = nn.ModuleList()
     
@@ -253,11 +255,21 @@ class EoE(nn.Module):
         #         new_classifier_only_bert.weight[:self.num_old_labels, :] = self.classifier_only_bert[self.num_tasks-1].weight
         #         new_classifier_only_bert.bias[:self.num_old_labels] = self.classifier_only_bert[self.num_tasks-1].bias
         
+        self.temp_classifier = nn.Sequential( 
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, self.classifier_hidden_size, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.classifier_hidden_size, new_output_size),
+        ).to(self.device)
+        
         self.classifier.append(new_classifier)
         
         self.classifier_only_bert.append(new_classifier_only_bert)
 
         self.feature_extractor.add_adapter(self.num_tasks)
+    
+    
 
     def save_classifier(self, idx, save_dir):
         state_dict = self.classifier[idx].state_dict()
@@ -511,7 +523,8 @@ class EoE(nn.Module):
             **kwargs
         )
             
-        logits = self.classifier[self.num_tasks](hidden_states)
+        # logits = self.classifier[self.num_tasks](hidden_states)
+        logits = self.temp_classifier(hidden_states)
         # print("-------------Training Classifier--------------------")
         # print(logits)
         if self.training:
