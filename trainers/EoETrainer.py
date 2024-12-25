@@ -114,12 +114,12 @@ class EoETrainer(BaseTrainer):
             
             
             baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['accumulate_cov_shared'])
-            un_hidden_data = baseUnHidden.generate_hidden_data(480)
-            un_hidden_dataset = BaseDataset(un_hidden_data)  
+            un_hidden_data = baseUnHidden.generate_hidden_data(self.args.num_sample_gen_per_epoch, self.args.gen_epochs)
+            # un_hidden_dataset = BaseDataset(un_hidden_data)  
                 
             self.train_mlp(
                 model=model,
-                train_dataset=un_hidden_dataset,
+                train_dataset=un_hidden_data,
                 data_collator=float_data_collator,
                 training_mlp2=True
             )      
@@ -135,12 +135,12 @@ class EoETrainer(BaseTrainer):
             
             
             baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['accumulate_cov_shared'])
-            in_hidden_data = baseInHidden.generate_hidden_data(240)
-            in_hidden_dataset = BaseDataset(in_hidden_data)  
+            in_hidden_data = baseInHidden.generate_hidden_data(self.args.num_sample_gen_per_epoch, self.args.gen_epochs)
+            # in_hidden_dataset = BaseDataset(in_hidden_data)  
             
             self.train_mlp(
                 model=model,
-                train_dataset=in_hidden_dataset,
+                train_dataset=in_hidden_data,
                 data_collator=float_data_collator,
                 training_mlp2=False
             ) 
@@ -281,22 +281,17 @@ class EoETrainer(BaseTrainer):
         progress_bar.close()
         
     def train_mlp(self, model, train_dataset, data_collator, training_mlp2):
-        train_dataloader = DataLoader(
-            train_dataset,
-            batch_size=self.args.train_batch_size,
-            shuffle=True,
-            collate_fn=data_collator
-        )
-        len_dataloader = len(train_dataloader)
-        num_examples = len(train_dataset)
-        max_steps = len_dataloader * self.args.num_train_epochs
+        
+        
+        max_steps = self.args.num_sample_gen_per_epoch * self.args.classifier_epochs
+        num_examples = self.args.num_sample_gen_per_epoch * self.args.gen_epochs
 
         logger.info("***** Running training *****")
         logger.info(f"  Num examples = {num_examples}")
-        logger.info(f"  Num Epochs = {self.args.num_train_epochs}")
+        logger.info(f"  Num Epochs = {self.args.classifier_epochs}")
         logger.info(f"  Train batch size = {self.args.train_batch_size}")
         logger.info(f"  Total optimization steps = {max_steps}")
-
+        
         no_decay = ["bias", "LayerNorm.weight"]
         parameters = [
             {'params': [p for n, p in model.named_parameters() if 'feature_extractor' in n and not any(nd in n for nd in no_decay)],
@@ -311,12 +306,22 @@ class EoETrainer(BaseTrainer):
         self.optimizer = AdamW(parameters)
 
         progress_bar = tqdm(range(max_steps))
+        
         for name, param in model.named_parameters():
             if param.requires_grad:
                 print(name)
                 break
+        
+        for epoch in range(self.args.classifier_epochs):
+            train_dataset = BaseDataset(train_dataset[epoch % self.args.gen_epochs])  
 
-        for epoch in range(self.args.num_train_epochs):
+            train_dataloader = DataLoader(
+                train_dataset,
+                batch_size=self.args.train_batch_size,
+                shuffle=True,
+                collate_fn=data_collator
+            )            
+
             model.train()
             for step, inputs in enumerate(train_dataloader):
                 self.optimizer.zero_grad()
@@ -334,7 +339,6 @@ class EoETrainer(BaseTrainer):
                 nn.utils.clip_grad_norm_(model.parameters(), self.args.max_grad_norm)
 
                 self.optimizer.step()
-
 
                 progress_bar.update(1)
                 progress_bar.set_postfix({"Loss": loss.item()})

@@ -27,14 +27,17 @@ class BaseHidden:
             res.append(ins)
         return res
 
-    def generate_hidden_data(self, num):
+    def generate_hidden_data(self, num, epochs):
         res = []
-        for idx in range(self.num_class):
-            labels = idx
-            mean = self.means[idx].cpu().numpy()
-            cov = self.covariance.cpu().numpy()
-            samples = self.generate_data_base_on_means_and_cov(labels, mean, cov, num)
-            res.extend(samples)
+        for epoch in epochs:
+            temp = []
+            for idx in range(self.num_class):
+                labels = idx
+                mean = self.means[idx].cpu().numpy()
+                cov = self.covariance.cpu().numpy()
+                samples = self.generate_data_base_on_means_and_cov(labels, mean, cov, num)
+                temp.extend(samples)
+            res.append(temp)
         return res
             
 
