@@ -33,12 +33,13 @@ class BaseHidden:
             res.append([])
         for idx in range(self.num_class):
             labels = idx
-            mean = self.means[idx].cpu().numpy()
-            cov = self.covariance.cpu().numpy()
+            mean = self.means[idx].cpu().numpy().astype("float32")
+            cov = self.covariance.cpu().numpy().astype("float32")
             samples = self.generate_data_base_on_means_and_cov(labels, mean, cov, num*epochs)
             for epoch in range(epochs):
                 temp = samples[epoch*num:(epoch+1)*num]
                 res[epoch].extend(temp)
+            del samples
         return res
             
 
