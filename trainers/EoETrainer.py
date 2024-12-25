@@ -114,7 +114,7 @@ class EoETrainer(BaseTrainer):
             # print(model.un_expert_distribution['accumulate_cov_shared'])
             
             
-            baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['accumulate_cov_shared'])
+            baseUnHidden = BaseHidden(model.num_labels, model.un_expert_distribution['class_mean'], model.un_expert_distribution['accumulate_cov_shared'], "mlp2")
             un_hidden_data = baseUnHidden.generate_hidden_data(self.args.num_sample_gen_per_epoch, self.args.gen_epochs)
             # un_hidden_dataset = BaseDataset(un_hidden_data)  
                 
@@ -282,6 +282,18 @@ class EoETrainer(BaseTrainer):
 
         progress_bar.close()
         
+    def get_samples(self, epoch, mlp):
+        data = []
+        folder_path = f"./ckpt/data_{mlp}/"
+        files = os.listdir(folder_path)
+        for file in files:
+            data_file = np.load(file, allow_pickle=True)  # allow_pickle nếu bạn lưu danh sách
+            need_data = data_file[epoch*self.args.num_sample_gen_per_epoch:(epoch+1)*self.args.num_sample_gen_per_epoch]
+            data.extend(need_data)
+            del data_file
+            del need_data
+        return data
+        
     def train_mlp(self, model, train_dataset, data_collator, training_mlp2):
         
         
@@ -316,7 +328,12 @@ class EoETrainer(BaseTrainer):
         
         for epoch in range(self.args.classifier_epochs):
             
-            sub_train_dataset = BaseDataset(train_dataset[epoch % self.args.gen_epochs])  
+            
+            # sub_train_dataset = BaseDataset(train_dataset[epoch % self.args.gen_epochs]) 
+            if training_mlp2:
+                sub_train_dataset = BaseDataset(self.get_samples(epoch, "mlp2"))
+            else:
+                sub_train_dataset = BaseDataset(self.get_samples(epoch, "mlp1"))  
 
             train_dataloader = DataLoader(
                 sub_train_dataset,

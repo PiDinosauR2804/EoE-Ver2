@@ -2,6 +2,7 @@ import copy
 import os
 import json
 import random
+import pickle
 
 import numpy as np
 import torch
@@ -27,19 +28,22 @@ class BaseHidden:
             res.append(ins)
         return res
 
-    def generate_hidden_data(self, num, epochs):
+    def generate_hidden_data(self, num, epochs,mlp):
         res = []
-        for epoch in range(epochs):
-            res.append([])
+        save_dir = f"./ckpt/data_{mlp}"
         for idx in range(self.num_class):
             labels = idx
             mean = self.means[idx].cpu().numpy().astype("float32")
             cov = self.covariance.cpu().numpy().astype("float32")
             samples = self.generate_data_base_on_means_and_cov(labels, mean, cov, num*epochs)
-            for epoch in range(epochs):
-                temp = samples[epoch*num:(epoch+1)*num]
-                res[epoch].extend(temp)
             del samples
+            file_path = os.path.join(save_dir, f"samples_{idx}.pkl")
+            with open(file_path, "wb") as f:
+                pickle.dump(res, f)
+            
+            print(f"Saved data for label {idx} to {file_path}")
+            del res
+        
         return res
             
 
