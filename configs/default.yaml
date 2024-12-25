@@ -26,8 +26,8 @@ training_args:
   train_batch_size: 32
   eval_batch_size: 64
   optim: "adamw"
-  learning_rate: 1e-4
-  classifier_learning_rate: 5e-5
+  learning_rate: 1e-3
+  classifier_learning_rate: 1e-3
   num_exp_rounds: 1
   num_train_epochs: 5
   max_grad_norm: 10
