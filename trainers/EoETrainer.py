@@ -2,6 +2,7 @@ import copy
 import logging
 import os
 import pickle
+import gc
 
 import hydra
 import torch
@@ -92,17 +93,17 @@ class EoETrainer(BaseTrainer):
             # print("2")
             # print(tokenizer.vocab_size)
             if self.task_idx == 0:
-                expert_model = f"./ckpt/{self.args.dataset_name}_{seed}_{self.args.augment_type}.pth"
-                # expert_model = f"/content/drive/MyDrive/TACRED_2021_all.pth"
+                # expert_model = f"./ckpt/{self.args.dataset_name}_{seed}_{self.args.augment_type}.pth"
+                expert_model = f"/content/drive/MyDrive/TACRED_2021_all.pth"
                 # expert_model = f"/content/drive/MyDrive/FewRel_2021_all.pth"
                 model.load_expert_model(expert_model)
                 logger.info(f"load first task model from {expert_model}")
-            else:
-                self.train(
-                    model=model,
-                    train_dataset=train_dataset,
-                    data_collator=default_data_collator
-                )
+            # else:
+            #     self.train(
+            #         model=model,
+            #         train_dataset=train_dataset,
+            #         data_collator=default_data_collator
+            #     )
                 
             self.statistic(model, train_dataset_old, default_data_collator)
             
@@ -123,6 +124,7 @@ class EoETrainer(BaseTrainer):
                 data_collator=float_data_collator,
                 training_mlp2=True
             )      
+            del un_hidden_data 
 
             # print(model.classifier[-1].weight)
             # print("----------------------instructed representation----------------------")
@@ -134,16 +136,16 @@ class EoETrainer(BaseTrainer):
             # print(model.un_expert_distribution['accumulate_cov_shared'])
             
             
-            baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['accumulate_cov_shared'])
-            in_hidden_data = baseInHidden.generate_hidden_data(self.args.num_sample_gen_per_epoch, self.args.gen_epochs)
-            # in_hidden_dataset = BaseDataset(in_hidden_data)  
+            # baseInHidden = BaseHidden(model.num_labels, model.in_expert_distribution['class_mean'], model.in_expert_distribution['accumulate_cov_shared'])
+            # in_hidden_data = baseInHidden.generate_hidden_data(self.args.num_sample_gen_per_epoch, self.args.gen_epochs)
+            # # in_hidden_dataset = BaseDataset(in_hidden_data)  
             
-            self.train_mlp(
-                model=model,
-                train_dataset=in_hidden_data,
-                data_collator=float_data_collator,
-                training_mlp2=False
-            ) 
+            # self.train_mlp(
+            #     model=model,
+            #     train_dataset=in_hidden_data,
+            #     data_collator=float_data_collator,
+            #     training_mlp2=False
+            # ) 
             
             
             os.makedirs(f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}", exist_ok=True)
@@ -156,8 +158,7 @@ class EoETrainer(BaseTrainer):
                 self.task_idx,
                 save_dir=f"./ckpt/{self.args.dataset_name}-{seed}-{self.args.augment_type}",
                 save=True,
-            )
-            
+            )            
             
             cur_test_data = data.filter(cur_labels, 'test')
             history_test_data = data.filter(seen_labels, 'test')
@@ -165,23 +166,23 @@ class EoETrainer(BaseTrainer):
             cur_test_dataset = BaseDataset(cur_test_data)
             history_test_dataset = BaseDataset(history_test_data)
 
-            cur_acc, cur_hit = self.eval(
-                model=model,
-                eval_dataset=cur_test_dataset,
-                data_collator=default_data_collator,
-                seen_labels=seen_labels,
-                label2task_id=copy.deepcopy(data.label2task_id), 
-                oracle=True,
-            )
+            # cur_acc, cur_hit = self.eval(
+            #     model=model,
+            #     eval_dataset=cur_test_dataset,
+            #     data_collator=default_data_collator,
+            #     seen_labels=seen_labels,
+            #     label2task_id=copy.deepcopy(data.label2task_id), 
+            #     oracle=True,
+            # )
             
-            total_acc_1, total_hit_1 = self.eval(
-                model=model,
-                eval_dataset=history_test_dataset,
-                data_collator=default_data_collator,
-                seen_labels=seen_labels,
-                label2task_id=copy.deepcopy(data.label2task_id),
-                oracle=True,
-            )
+            # total_acc_1, total_hit_1 = self.eval(
+            #     model=model,
+            #     eval_dataset=history_test_dataset,
+            #     data_collator=default_data_collator,
+            #     seen_labels=seen_labels,
+            #     label2task_id=copy.deepcopy(data.label2task_id),
+            #     oracle=True,
+            # )
 
             total_acc, total_hit = self.eval(
                 model=model,
@@ -191,10 +192,11 @@ class EoETrainer(BaseTrainer):
                 label2task_id=copy.deepcopy(data.label2task_id),
             )
 
-            all_cur_acc.append(cur_acc)
+            # all_cur_acc.append(cur_acc)
+            all_cur_acc.append(total_acc)
             all_total_acc.append(total_acc)
             all_total_hit.append(total_hit)
-            loggerdb.log_metrics({"train/all_cur_acc": cur_acc})
+            # loggerdb.log_metrics({"train/all_cur_acc": cur_acc})
             loggerdb.log_metrics({"train/all_total_acc": total_acc})
             loggerdb.log_metrics({"train/all_total_hit": total_hit})
 
@@ -313,10 +315,11 @@ class EoETrainer(BaseTrainer):
                 break
         
         for epoch in range(self.args.classifier_epochs):
-            train_dataset = BaseDataset(train_dataset[epoch % self.args.gen_epochs])  
+            
+            sub_train_dataset = BaseDataset(train_dataset[epoch % self.args.gen_epochs])  
 
             train_dataloader = DataLoader(
-                train_dataset,
+                sub_train_dataset,
                 batch_size=self.args.train_batch_size,
                 shuffle=True,
                 collate_fn=data_collator

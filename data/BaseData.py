@@ -29,15 +29,16 @@ class BaseHidden:
 
     def generate_hidden_data(self, num, epochs):
         res = []
-        for epoch in epochs:
-            temp = []
-            for idx in range(self.num_class):
-                labels = idx
-                mean = self.means[idx].cpu().numpy()
-                cov = self.covariance.cpu().numpy()
-                samples = self.generate_data_base_on_means_and_cov(labels, mean, cov, num)
-                temp.extend(samples)
-            res.append(temp)
+        for epoch in range(epochs):
+            res.append([])
+        for idx in range(self.num_class):
+            labels = idx
+            mean = self.means[idx].cpu().numpy()
+            cov = self.covariance.cpu().numpy()
+            samples = self.generate_data_base_on_means_and_cov(labels, mean, cov, num*epochs)
+            for epoch in range(epochs):
+                temp = samples[epoch*num:(epoch+1)*num]
+                res[epoch].extend(temp)
         return res
             
 
