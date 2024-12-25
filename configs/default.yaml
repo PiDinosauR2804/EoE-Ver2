@@ -33,7 +33,7 @@ training_args:
   max_grad_norm: 10
   warmup_ratio: 0
   frozen: False
-  gen_epochs: 200
+  gen_epochs: 50
   num_sample_gen_per_epoch: 100
   classifier_epochs: 250
 
